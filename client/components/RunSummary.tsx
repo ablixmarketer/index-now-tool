@@ -33,21 +33,24 @@ export function RunSummary({ results }: RunSummaryProps) {
       value: succeeded,
       icon: CheckCircle,
       color: 'text-green-600',
-      bgColor: 'bg-green-100 dark:bg-green-900/20'
+      bgColor: 'bg-green-100 dark:bg-green-900/20',
+      subtitle: `${((succeeded / total) * 100).toFixed(1)}% success rate`
     },
     {
       title: 'Failed',
       value: failed,
       icon: XCircle,
       color: 'text-red-600',
-      bgColor: 'bg-red-100 dark:bg-red-900/20'
+      bgColor: 'bg-red-100 dark:bg-red-900/20',
+      subtitle: `${errors} network errors`
     },
     {
       title: 'Rate Limited',
       value: rateLimited,
       icon: AlertTriangle,
       color: 'text-yellow-600',
-      bgColor: 'bg-yellow-100 dark:bg-yellow-900/20'
+      bgColor: 'bg-yellow-100 dark:bg-yellow-900/20',
+      subtitle: 'Retry with delay'
     }
   ];
 
