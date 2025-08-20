@@ -58,12 +58,11 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError, disab
         })
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP ${response.status}`);
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `HTTP ${response.status}`);
+      }
       onScanComplete(data.urls);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to scan sitemap';
