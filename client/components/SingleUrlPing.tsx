@@ -36,20 +36,11 @@ export function SingleUrlPing({ onPingComplete, disabled }: SingleUrlPingProps) 
     setIsPinging(true);
 
     try {
-      const response = await fetch('/api/indexnow/single', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: url.trim(),
-          engines: selectedEngines
-        })
+      const data = await indexnowApi.single({
+        url: url.trim(),
+        engines: selectedEngines
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || data.error || `HTTP ${response.status}`);
-      }
       onPingComplete(data.results);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to ping URL';
