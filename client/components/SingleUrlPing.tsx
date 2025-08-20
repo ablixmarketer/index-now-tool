@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Globe, Zap, AlertCircle } from 'lucide-react';
 import { engines, type EngineId, type PingResult } from '@shared/indexnow';
+import { indexnowApi } from '@/lib/fetch-utils';
 
 interface SingleUrlPingProps {
   onPingComplete: (results: PingResult[]) => void;
