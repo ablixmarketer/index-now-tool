@@ -57,6 +57,9 @@ export async function createApp() {
   return app;
 }
 
+// Export for vite config
+export const createServer = createApp;
+
 // Start server if this file is run directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   const PORT = process.env.PORT || 8080;
@@ -68,7 +71,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       if (process.env.INDEXNOW_KEY) {
         console.log(`IndexNow key configured: ${process.env.INDEXNOW_KEY.slice(0, 8)}...`);
       } else {
-        console.log('⚠���  IndexNow key not configured. Set INDEXNOW_KEY environment variable.');
+        console.log('⚠️  IndexNow key not configured. Set INDEXNOW_KEY environment variable.');
       }
     });
   }).catch(console.error);
