@@ -304,17 +304,44 @@ export default function Index() {
                 <ExportButtons results={pingResults} />
               </div>
 
-              {/* Summary Cards */}
-              <RunSummary results={pingResults} />
+              {/* Check if this is a bulk operation or single URL operation */}
+              {new Set(pingResults.map(r => r.url)).size > 1 ? (
+                // Bulk operation results
+                <>
+                  <BulkResultsSummary results={pingResults} />
 
-              {/* Status Legend */}
-              <StatusLegend />
+                  {/* Status Legend */}
+                  <StatusLegend />
 
-              {/* Engine Status */}
-              <EngineStatus results={pingResults} />
+                  {/* Detailed Results Table (collapsible) */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Detailed Request Results</CardTitle>
+                      <CardDescription>
+                        Individual API call results for each URL and engine combination
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResultsTable results={pingResults} />
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (
+                // Single URL operation results
+                <>
+                  {/* Summary Cards */}
+                  <RunSummary results={pingResults} />
 
-              {/* Results Table */}
-              <ResultsTable results={pingResults} />
+                  {/* Status Legend */}
+                  <StatusLegend />
+
+                  {/* Engine Status */}
+                  <EngineStatus results={pingResults} />
+
+                  {/* Results Table */}
+                  <ResultsTable results={pingResults} />
+                </>
+              )}
             </motion.div>
           )}
 
