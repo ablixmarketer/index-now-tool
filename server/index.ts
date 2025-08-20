@@ -62,7 +62,7 @@ export const createServer = createApp;
 
 // Start server if this file is run directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const PORT = process.env.PORT || 8080;
+  const PORT = process.env.API_PORT || 3001;
   
   createApp().then(app => {
     app.listen(PORT, () => {
