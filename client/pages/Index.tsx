@@ -214,25 +214,6 @@ export default function Index() {
                   </motion.div>
                 </div>
 
-                {/* Debug Test Button - Remove this after testing */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="col-span-full"
-                >
-                  <Card className="shadow-lg border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20">
-                    <CardContent className="p-4">
-                      <Button
-                        onClick={addTestUrls}
-                        variant="outline"
-                        className="w-full"
-                      >
-                        🧪 Test: Load Sample URLs (Debug Button)
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-
                 {/* Bulk Ping Card */}
                 {totalIncluded > 0 && (
                   <motion.div
