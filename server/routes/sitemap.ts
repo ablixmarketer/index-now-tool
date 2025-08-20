@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { XMLParser } from 'fast-xml-parser';
 import pLimit from 'p-limit';
-import { SitemapScanRequestSchema, type SitemapScanResponse, type SitemapUrl } from "@shared/indexnow";
+import { SitemapScanRequestSchema, type SitemapScanResponse, type SitemapUrl } from "../../shared/indexnow";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
