@@ -40,12 +40,8 @@ export default function Index() {
 
 
   const handleScanComplete = (urls: SitemapUrl[]) => {
-    console.log('handleScanComplete called with:', urls);
-    console.log('URLs count:', urls?.length || 0);
-
     setScannedUrls(urls);
     const includedUrls = urls.filter(url => url.reason === 'included').map(url => url.url);
-    console.log('Included URLs:', includedUrls);
     setSelectedUrls(includedUrls);
   };
 
