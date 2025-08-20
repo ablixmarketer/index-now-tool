@@ -1,13 +1,13 @@
 import { RequestHandler } from "express";
 import pLimit from 'p-limit';
-import { 
-  BulkPingRequestSchema, 
+import {
+  BulkPingRequestSchema,
   SinglePingRequestSchema,
   type BulkPingResponse,
   type PingResult,
   statusToMeaning,
-  engines 
-} from "@shared/indexnow";
+  engines
+} from "../../shared/indexnow";
 
 // Environment variables
 const INDEXNOW_KEY = process.env.INDEXNOW_KEY || '558e9f294e5246d2993e4eaed06e54b4';
