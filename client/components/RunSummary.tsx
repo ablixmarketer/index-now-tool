@@ -15,6 +15,10 @@ export function RunSummary({ results }: RunSummaryProps) {
   const rateLimited = results.filter(r => r.status === 429).length;
   const errors = results.filter(r => r.status === 0).length;
 
+  // Calculate unique URLs to show proper bulk statistics
+  const uniqueUrls = new Set(results.map(r => r.url)).size;
+  const uniqueEngines = new Set(results.map(r => r.engine)).size;
+
   const stats = [
     {
       title: 'Total URLs',
