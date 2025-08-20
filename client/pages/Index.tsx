@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SitemapScanner } from '@/components/SitemapScanner';
 import { SingleUrlPing } from '@/components/SingleUrlPing';
+import { BulkPingButton } from '@/components/BulkPingButton';
 import { ResultsTable } from '@/components/ResultsTable';
 import { EngineStatus } from '@/components/EngineStatus';
 import { StatusLegend } from '@/components/StatusLegend';
