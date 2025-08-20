@@ -45,7 +45,7 @@ export async function createApp() {
     });
   } else {
     // Development mode - integrate with Vite
-    const vite = await createServer({
+    const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa"
     });
