@@ -44,12 +44,11 @@ export function SingleUrlPing({ onPingComplete, disabled }: SingleUrlPingProps) 
         })
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP ${response.status}`);
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `HTTP ${response.status}`);
+      }
       onPingComplete(data.results);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to ping URL';
