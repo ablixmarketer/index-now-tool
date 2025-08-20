@@ -19,7 +19,14 @@ export function RunSummary({ results }: RunSummaryProps) {
   const uniqueUrls = new Set(results.map(r => r.url)).size;
   const uniqueEngines = new Set(results.map(r => r.engine)).size;
 
-  const stats = [
+  const stats: Array<{
+    title: string;
+    value: number;
+    icon: any;
+    color: string;
+    bgColor: string;
+    subtitle?: string;
+  }> = [
     {
       title: 'Total Requests',
       value: total,
