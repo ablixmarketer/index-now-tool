@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Globe, Search, AlertCircle, Settings, Zap } from 'lucide-react';
 import { engines, type EngineId, type SitemapUrl } from '@shared/indexnow';
+import { sitemapApi } from '@/lib/fetch-utils';
 
 interface SitemapScannerProps {
   onScanStart: () => void;
