@@ -48,22 +48,13 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError, disab
       const include = includePatterns.trim() ? includePatterns.split('\n').filter(p => p.trim()) : [];
       const exclude = excludePatterns.trim() ? excludePatterns.split('\n').filter(p => p.trim()) : [];
 
-      const response = await fetch('/api/sitemap/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sitemapUrl: sitemapUrl.trim(),
-          days: finalDays,
-          include,
-          exclude
-        })
+      const data = await sitemapApi.scan({
+        sitemapUrl: sitemapUrl.trim(),
+        days: finalDays,
+        include,
+        exclude
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || data.error || `HTTP ${response.status}`);
-      }
       onScanComplete(data.urls);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to scan sitemap';
