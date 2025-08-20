@@ -60,13 +60,18 @@ export function RunSummary({ results }: RunSummaryProps) {
         <Card key={stat.title} className={`${stat.bgColor} border-0`}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
                   {stat.title}
                 </p>
                 <p className={`text-2xl font-bold ${stat.color}`}>
                   {stat.value}
                 </p>
+                {stat.subtitle && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    {stat.subtitle}
+                  </p>
+                )}
               </div>
               <stat.icon className={`h-8 w-8 ${stat.color}`} />
             </div>
