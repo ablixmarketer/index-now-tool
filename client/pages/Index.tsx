@@ -38,6 +38,22 @@ export default function Index() {
   const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('sitemap');
 
+  // Auto-trigger test URLs for debugging
+  React.useEffect(() => {
+    // Add test URLs after a short delay
+    const timer = setTimeout(() => {
+      const testUrls: SitemapUrl[] = [
+        { url: 'https://www.airi.health/', lastmod: '2025-01-15', reason: 'included', checked: true },
+        { url: 'https://www.airi.health/services', lastmod: '2025-01-15', reason: 'included', checked: true },
+        { url: 'https://www.airi.health/hospitals', lastmod: '2025-01-15', reason: 'included', checked: true }
+      ];
+      setScannedUrls(testUrls);
+      setSelectedUrls(testUrls.map(u => u.url));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleScanComplete = (urls: SitemapUrl[]) => {
     console.log('handleScanComplete called with:', urls);
     console.log('URLs count:', urls?.length || 0);
