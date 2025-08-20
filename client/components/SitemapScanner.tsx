@@ -55,7 +55,14 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError, disab
         exclude
       });
 
-      onScanComplete(data.urls);
+      console.log('Sitemap scan response:', data);
+      console.log('URLs found:', data.urls?.length || 0);
+
+      if (data.urls && Array.isArray(data.urls)) {
+        onScanComplete(data.urls);
+      } else {
+        throw new Error('Invalid response format: no URLs array found');
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to scan sitemap';
       setError(message);
