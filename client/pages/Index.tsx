@@ -58,16 +58,6 @@ export default function Index() {
     setIsPinging(false);
   };
 
-  // Debug function to test bulk ping button
-  const addTestUrls = () => {
-    const testUrls: SitemapUrl[] = [
-      { url: 'https://www.airi.health/', lastmod: '2025-01-15', reason: 'included', checked: true },
-      { url: 'https://www.airi.health/services', lastmod: '2025-01-15', reason: 'included', checked: true },
-      { url: 'https://www.airi.health/hospitals', lastmod: '2025-01-15', reason: 'included', checked: true }
-    ];
-    setScannedUrls(testUrls);
-    setSelectedUrls(testUrls.map(u => u.url));
-  };
 
   const includedUrls = scannedUrls.filter(url => url.reason === 'included');
   const totalScanned = scannedUrls.length;
