@@ -197,6 +197,37 @@ export default function Index() {
                   </motion.div>
                 </div>
 
+                {/* Bulk Ping Card */}
+                {totalIncluded > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="col-span-full"
+                  >
+                    <Card className="shadow-lg border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <Zap className="w-5 h-5" />
+                          <span>Bulk Ping URLs</span>
+                        </CardTitle>
+                        <CardDescription>
+                          Send {selectedUrls.length} selected URLs to search engines
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <BulkPingButton
+                          selectedUrls={selectedUrls}
+                          onPingStart={() => setIsPinging(true)}
+                          onPingProgress={handlePingProgress}
+                          onPingComplete={handlePingComplete}
+                          disabled={isScanning}
+                        />
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
+
                 {/* Progress Card */}
                 {isPinging && (
                   <motion.div
