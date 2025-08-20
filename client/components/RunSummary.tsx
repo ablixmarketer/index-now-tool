@@ -21,11 +21,12 @@ export function RunSummary({ results }: RunSummaryProps) {
 
   const stats = [
     {
-      title: 'Total URLs',
+      title: 'Total Requests',
       value: total,
       icon: Clock,
       color: 'text-slate-600',
-      bgColor: 'bg-slate-100 dark:bg-slate-800'
+      bgColor: 'bg-slate-100 dark:bg-slate-800',
+      subtitle: `${uniqueUrls} URLs × ${uniqueEngines} engines`
     },
     {
       title: 'Succeeded',
