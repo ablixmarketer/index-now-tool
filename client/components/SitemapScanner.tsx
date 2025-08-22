@@ -61,6 +61,7 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError, disab
       const message = err instanceof Error ? err.message : 'Failed to scan sitemap';
       setError(message);
       onScanError(message);
+      setIsScanning(false);
     } finally {
       setIsScanning(false);
     }
