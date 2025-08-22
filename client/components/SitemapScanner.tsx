@@ -244,27 +244,35 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError, disab
         </Alert>
       )}
 
-      {/* Scan Button */}
-      <Button
-        onClick={handleScan}
-        disabled={disabled || isScanning || selectedEngines.length === 0}
-        className="w-full"
-        size="lg"
-        data-scan-button="true"
-      >
-        {isScanning ? (
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="mr-2"
-          >
-            <Search className="w-4 h-4" />
-          </motion.div>
-        ) : (
-          <Search className="w-4 h-4 mr-2" />
-        )}
-        {isScanning ? 'Scanning Sitemap...' : 'Scan Sitemap'}
-      </Button>
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Button
+          onClick={handleScan}
+          disabled={disabled || isScanning || selectedEngines.length === 0}
+          className="flex-1"
+          size="lg"
+          data-scan-button="true"
+        >
+          {isScanning ? (
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              className="mr-2"
+            >
+              <Search className="w-4 h-4" />
+            </motion.div>
+          ) : (
+            <Search className="w-4 h-4 mr-2" />
+          )}
+          {isScanning ? 'Scanning Sitemap...' : 'Scan Sitemap'}
+        </Button>
+
+        <DemoDataButton
+          onLoadDemo={(urls) => {
+            onScanComplete(urls);
+          }}
+        />
+      </div>
     </div>
   );
 }
