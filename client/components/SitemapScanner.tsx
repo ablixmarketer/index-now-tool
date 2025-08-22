@@ -19,7 +19,6 @@ interface SitemapScannerProps {
   onScanStart: () => void;
   onScanComplete: (urls: SitemapUrl[]) => void;
   onScanError: (error: string) => void;
-  disabled?: boolean;
 }
 
 export function SitemapScanner({ onScanStart, onScanComplete, onScanError, disabled }: SitemapScannerProps) {
