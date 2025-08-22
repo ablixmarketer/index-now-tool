@@ -21,7 +21,7 @@ interface SitemapScannerProps {
   onScanError: (error: string) => void;
 }
 
-export function SitemapScanner({ onScanStart, onScanComplete, onScanError, disabled }: SitemapScannerProps) {
+export function SitemapScanner({ onScanStart, onScanComplete, onScanError }: SitemapScannerProps) {
   const [sitemapUrl, setSitemapUrl] = useState('https://www.airi.health/sitemap.xml');
   const [days, setDays] = useState(7);
   const [customDays, setCustomDays] = useState('');
