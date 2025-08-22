@@ -35,6 +35,8 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError, disab
   const [error, setError] = useState('');
 
   const handleScan = async () => {
+    console.log('🔍 Scan button clicked!', { sitemapUrl, selectedEngines });
+
     if (!sitemapUrl.trim()) {
       setError('Please enter a sitemap URL');
       return;
