@@ -42,9 +42,11 @@ export default function Index() {
 
 
   const handleScanComplete = (urls: SitemapUrl[]) => {
+    console.log('📋 Scan completed with URLs:', urls.length);
     setScannedUrls(urls);
     const includedUrls = urls.filter(url => url.reason === 'included').map(url => url.url);
     setSelectedUrls(includedUrls);
+    setIsScanning(false); // Ensure scanning state is reset
   };
 
   const handlePingProgress = (result: PingResult) => {
@@ -52,6 +54,7 @@ export default function Index() {
   };
 
   const handlePingComplete = (results: PingResult[]) => {
+    console.log('✅ Ping completed with results:', results.length);
     setPingResults(results);
     setIsPinging(false);
   };
