@@ -138,10 +138,15 @@ export default function Index() {
                       </CardHeader>
                       <CardContent>
                         <SitemapScanner
-                          onScanStart={() => setIsScanning(true)}
+                          onScanStart={() => {
+                            console.log('🚀 Scan started');
+                            setIsScanning(true);
+                          }}
                           onScanComplete={handleScanComplete}
-                          onScanError={() => setIsScanning(false)}
-                          disabled={isPinging}
+                          onScanError={(error) => {
+                            console.log('❌ Scan error:', error);
+                            setIsScanning(false);
+                          }}
                         />
                       </CardContent>
                     </Card>
