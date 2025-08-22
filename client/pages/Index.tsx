@@ -18,15 +18,16 @@ import { StatusLegend } from '@/components/StatusLegend';
 import { ExportButtons } from '@/components/ExportButtons';
 import { UrlPreview } from '@/components/UrlPreview';
 import { RunSummary } from '@/components/RunSummary';
-import { 
-  Globe, 
-  Zap, 
-  Activity, 
-  Settings, 
+import {
+  Globe,
+  Zap,
+  Activity,
+  Settings,
   AlertCircle,
   CheckCircle,
   Clock,
-  BarChart3
+  BarChart3,
+  Search
 } from 'lucide-react';
 import { type PingResult, type SitemapUrl } from '@shared/indexnow';
 
