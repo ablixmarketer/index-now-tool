@@ -248,7 +248,7 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError, disab
       <div className="flex flex-col sm:flex-row gap-3">
         <Button
           onClick={handleScan}
-          disabled={disabled || isScanning || selectedEngines.length === 0}
+          disabled={isScanning || selectedEngines.length === 0}
           className="flex-1"
           size="lg"
           data-scan-button="true"
