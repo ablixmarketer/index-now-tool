@@ -201,24 +201,32 @@ export default function Index() {
                 </div>
 
                 {/* Bulk Ping Card */}
-                {totalIncluded > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="col-span-full"
-                  >
-                    <Card className="shadow-lg border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
-                      <CardHeader>
-                        <CardTitle className="flex items-center space-x-2">
-                          <Zap className="w-5 h-5" />
-                          <span>Bulk Ping URLs</span>
-                        </CardTitle>
-                        <CardDescription>
-                          Send {selectedUrls.length} selected URLs to search engines
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="col-span-full"
+                >
+                  <Card className="shadow-lg border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <Zap className="w-5 h-5" />
+                        <span>Bulk Ping URLs</span>
+                        {totalIncluded > 0 && (
+                          <Badge variant="secondary" className="ml-auto">
+                            {selectedUrls.length} URLs Ready
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <CardDescription>
+                        {totalIncluded > 0
+                          ? `Send ${selectedUrls.length} selected URLs to search engines`
+                          : "Scan a sitemap first to load URLs for bulk pinging"
+                        }
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {totalIncluded > 0 ? (
                         <BulkPingButton
                           selectedUrls={selectedUrls}
                           onPingStart={() => setIsPinging(true)}
@@ -226,10 +234,36 @@ export default function Index() {
                           onPingComplete={handlePingComplete}
                           disabled={isScanning}
                         />
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                )}
+                      ) : (
+                        <div className="text-center py-8">
+                          <div className="max-w-md mx-auto">
+                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 flex items-center justify-center">
+                              <Zap className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                              No URLs to Ping
+                            </h3>
+                            <p className="text-slate-600 dark:text-slate-400 mb-4">
+                              Scan your sitemap first to load URLs, then you can bulk ping them to search engines.
+                            </p>
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                // Scroll to scan button
+                                const scanButton = document.querySelector('[data-scan-button="true"]');
+                                scanButton?.scrollIntoView({ behavior: 'smooth' });
+                              }}
+                              className="flex items-center space-x-2"
+                            >
+                              <Search className="w-4 h-4" />
+                              <span>Go to Scan Sitemap</span>
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
                 {/* Progress Card */}
                 {isPinging && (
