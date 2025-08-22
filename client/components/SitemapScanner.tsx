@@ -249,6 +249,7 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError, disab
         disabled={disabled || isScanning || selectedEngines.length === 0}
         className="w-full"
         size="lg"
+        data-scan-button="true"
       >
         {isScanning ? (
           <motion.div
