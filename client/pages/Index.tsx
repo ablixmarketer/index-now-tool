@@ -12,6 +12,7 @@ import { SitemapScanner } from '@/components/SitemapScanner';
 import { SingleUrlPing } from '@/components/SingleUrlPing';
 import { BulkPingButton } from '@/components/BulkPingButton';
 import { BulkResultsSummary } from '@/components/BulkResultsSummary';
+import { DemoDataButton } from '@/components/DemoDataButton';
 import { ResultsTable } from '@/components/ResultsTable';
 import { EngineStatus } from '@/components/EngineStatus';
 import { StatusLegend } from '@/components/StatusLegend';
