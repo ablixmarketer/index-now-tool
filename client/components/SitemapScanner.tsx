@@ -10,10 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
-import { Globe, Search, AlertCircle, Settings, Zap, PlayCircle } from 'lucide-react';
+import { Globe, Search, AlertCircle, Settings, Zap } from 'lucide-react';
 import { engines, type EngineId, type SitemapUrl } from '@shared/indexnow';
 import { sitemapApi } from '@/lib/fetch-utils';
-import { DemoDataButton } from '@/components/DemoDataButton';
 
 interface SitemapScannerProps {
   onScanStart: () => void;
