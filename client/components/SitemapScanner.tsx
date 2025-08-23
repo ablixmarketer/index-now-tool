@@ -99,7 +99,7 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError }: Sit
             onChange={(e) => setSitemapUrl(e.target.value)}
             placeholder="https://example.com/sitemap.xml"
             className="pl-10"
-            disabled={disabled || isScanning}
+            disabled={isScanning}
           />
         </div>
         <p className="text-xs text-slate-500">
