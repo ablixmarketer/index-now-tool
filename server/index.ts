@@ -8,15 +8,19 @@ import "dotenv/config";
 // Import API handlers
 import { handleDemo } from "./routes/demo";
 import { handleSitemapScan } from "./routes/sitemap";
-import { handleBulkPing, handleSinglePing, handleKeyVerification } from "./routes/indexnow";
+import {
+  handleBulkPing,
+  handleSinglePing,
+  handleKeyVerification,
+} from "./routes/indexnow";
 
 export async function createApp() {
   const app = express();
-  
+
   // Middleware
   app.use(cors());
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(express.json({ limit: "10mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
   // Health check
   app.get("/api/ping", (req, res) => {
@@ -25,7 +29,7 @@ export async function createApp() {
 
   // Existing demo route
   app.get("/api/demo", handleDemo);
-  
+
   // IndexNow Console API routes
   app.post("/api/sitemap/scan", handleSitemapScan);
   app.post("/api/indexnow/bulk", handleBulkPing);
@@ -37,7 +41,7 @@ export async function createApp() {
   if (isProduction) {
     // Serve static files from dist/spa
     app.use(express.static(path.join(process.cwd(), "dist/spa")));
-    
+
     // Serve index.html for all non-API routes (SPA)
     app.get("*", (req, res) => {
       const indexPath = path.join(process.cwd(), "dist/spa/index.html");
@@ -47,9 +51,9 @@ export async function createApp() {
     // Development mode - integrate with Vite
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: "spa"
+      appType: "spa",
     });
-    
+
     app.use(vite.ssrFixStacktrace);
     app.use(vite.middlewares);
   }
@@ -62,18 +66,29 @@ export const createServer = createApp;
 
 // Start server if this file is run directly
 // Note: import.meta.url check removed for Netlify compatibility
-if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].includes('server/index')) {
+if (
+  typeof process !== "undefined" &&
+  process.argv &&
+  process.argv[1] &&
+  process.argv[1].includes("server/index")
+) {
   const PORT = process.env.API_PORT || 3001;
 
-  createApp().then(app => {
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      if (process.env.INDEXNOW_KEY) {
-        console.log(`IndexNow key configured: ${process.env.INDEXNOW_KEY.slice(0, 8)}...`);
-      } else {
-        console.log('⚠️  IndexNow key not configured. Set INDEXNOW_KEY environment variable.');
-      }
-    });
-  }).catch(console.error);
+  createApp()
+    .then((app) => {
+      app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+        console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+        if (process.env.INDEXNOW_KEY) {
+          console.log(
+            `IndexNow key configured: ${process.env.INDEXNOW_KEY.slice(0, 8)}...`,
+          );
+        } else {
+          console.log(
+            "⚠️  IndexNow key not configured. Set INDEXNOW_KEY environment variable.",
+          );
+        }
+      });
+    })
+    .catch(console.error);
 }
