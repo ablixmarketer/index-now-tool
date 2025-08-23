@@ -5,7 +5,7 @@
 
 
 [functions]
-  external_node_modules = ["express"]
+  external_node_modules = ["express", "vite", "lightningcss", "esbuild", "@vitejs/plugin-react-swc"]
   node_bundler = "esbuild"
   
 [[redirects]]
