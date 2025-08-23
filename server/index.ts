@@ -61,9 +61,10 @@ export async function createApp() {
 export const createServer = createApp;
 
 // Start server if this file is run directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Note: import.meta.url check removed for Netlify compatibility
+if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].includes('server/index')) {
   const PORT = process.env.API_PORT || 3001;
-  
+
   createApp().then(app => {
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
