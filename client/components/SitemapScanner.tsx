@@ -1,18 +1,24 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Slider } from '@/components/ui/slider';
-import { Globe, Search, AlertCircle, Settings, Zap } from 'lucide-react';
-import { engines, type EngineId, type SitemapUrl } from '@shared/indexnow';
-import { sitemapApi } from '@/lib/fetch-utils';
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
+import { Globe, Search, AlertCircle, Settings, Zap } from "lucide-react";
+import { engines, type EngineId, type SitemapUrl } from "@shared/indexnow";
+import { sitemapApi } from "@/lib/fetch-utils";
 
 interface SitemapScannerProps {
   onScanStart: () => void;
@@ -20,45 +26,58 @@ interface SitemapScannerProps {
   onScanError: (error: string) => void;
 }
 
-export function SitemapScanner({ onScanStart, onScanComplete, onScanError }: SitemapScannerProps) {
-  const [sitemapUrl, setSitemapUrl] = useState('https://www.airi.health/sitemap.xml');
+export function SitemapScanner({
+  onScanStart,
+  onScanComplete,
+  onScanError,
+}: SitemapScannerProps) {
+  const [sitemapUrl, setSitemapUrl] = useState(
+    "https://www.airi.health/sitemap.xml",
+  );
   const [days, setDays] = useState(7);
-  const [customDays, setCustomDays] = useState('');
-  const [includePatterns, setIncludePatterns] = useState('');
-  const [excludePatterns, setExcludePatterns] = useState('');
-  const [selectedEngines, setSelectedEngines] = useState<EngineId[]>(['indexnow']);
+  const [customDays, setCustomDays] = useState("");
+  const [includePatterns, setIncludePatterns] = useState("");
+  const [excludePatterns, setExcludePatterns] = useState("");
+  const [selectedEngines, setSelectedEngines] = useState<EngineId[]>([
+    "indexnow",
+  ]);
   const [concurrency, setConcurrency] = useState([5]);
   const [retries, setRetries] = useState([2]);
   const [isScanning, setIsScanning] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const handleScan = async () => {
-    console.log('🔍 Scan button clicked!', { sitemapUrl, selectedEngines });
+    console.log("🔍 Scan button clicked!", { sitemapUrl, selectedEngines });
 
     if (!sitemapUrl.trim()) {
-      setError('Please enter a sitemap URL');
+      setError("Please enter a sitemap URL");
       return;
     }
 
-    setError('');
+    setError("");
     setIsScanning(true);
     onScanStart();
 
     try {
       const finalDays = days === 0 ? parseInt(customDays) || 7 : days;
-      const include = includePatterns.trim() ? includePatterns.split('\n').filter(p => p.trim()) : [];
-      const exclude = excludePatterns.trim() ? excludePatterns.split('\n').filter(p => p.trim()) : [];
+      const include = includePatterns.trim()
+        ? includePatterns.split("\n").filter((p) => p.trim())
+        : [];
+      const exclude = excludePatterns.trim()
+        ? excludePatterns.split("\n").filter((p) => p.trim())
+        : [];
 
       const data = await sitemapApi.scan({
         sitemapUrl: sitemapUrl.trim(),
         days: finalDays,
         include,
-        exclude
+        exclude,
       });
 
       onScanComplete(data.urls);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to scan sitemap';
+      const message =
+        err instanceof Error ? err.message : "Failed to scan sitemap";
       setError(message);
       onScanError(message);
       setIsScanning(false);
@@ -68,20 +87,18 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError }: Sit
   };
 
   const handleEngineToggle = (engineId: EngineId, checked: boolean) => {
-    setSelectedEngines(prev => 
-      checked 
-        ? [...prev, engineId]
-        : prev.filter(id => id !== engineId)
+    setSelectedEngines((prev) =>
+      checked ? [...prev, engineId] : prev.filter((id) => id !== engineId),
     );
   };
 
   const daysOptions = [
-    { value: 5, label: '5 days' },
-    { value: 7, label: '7 days' },
-    { value: 10, label: '10 days' },
-    { value: 15, label: '15 days' },
-    { value: 30, label: '30 days' },
-    { value: 0, label: 'Custom' }
+    { value: 5, label: "5 days" },
+    { value: 7, label: "7 days" },
+    { value: 10, label: "10 days" },
+    { value: 15, label: "15 days" },
+    { value: 30, label: "30 days" },
+    { value: 0, label: "Custom" },
   ];
 
   return (
@@ -103,19 +120,23 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError }: Sit
           />
         </div>
         <p className="text-xs text-slate-500">
-          Supports standard, news, image, video, gzipped, and sitemap index files
+          Supports standard, news, image, video, gzipped, and sitemap index
+          files
         </p>
       </div>
 
       {/* Time Filter */}
       <div className="space-y-2">
         <Label className="text-sm font-medium">Last Modified Filter</Label>
-        <Select value={days.toString()} onValueChange={(value) => setDays(parseInt(value))}>
+        <Select
+          value={days.toString()}
+          onValueChange={(value) => setDays(parseInt(value))}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Select time range" />
           </SelectTrigger>
           <SelectContent>
-            {daysOptions.map(option => (
+            {daysOptions.map((option) => (
               <SelectItem key={option.value} value={option.value.toString()}>
                 {option.label}
               </SelectItem>
@@ -148,7 +169,9 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError }: Sit
             rows={3}
             className="text-sm"
           />
-          <p className="text-xs text-slate-500">One pattern per line (regex or prefix)</p>
+          <p className="text-xs text-slate-500">
+            One pattern per line (regex or prefix)
+          </p>
         </div>
         <div className="space-y-2">
           <Label className="text-sm font-medium">Exclude Patterns</Label>
@@ -159,7 +182,9 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError }: Sit
             rows={3}
             className="text-sm"
           />
-          <p className="text-xs text-slate-500">One pattern per line (regex or prefix)</p>
+          <p className="text-xs text-slate-500">
+            One pattern per line (regex or prefix)
+          </p>
         </div>
       </div>
 
@@ -174,18 +199,25 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError }: Sit
               <Checkbox
                 id={`engine-${id}`}
                 checked={selectedEngines.includes(id as EngineId)}
-                onCheckedChange={(checked) => handleEngineToggle(id as EngineId, checked as boolean)}
+                onCheckedChange={(checked) =>
+                  handleEngineToggle(id as EngineId, checked as boolean)
+                }
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-2">
-                  <Label htmlFor={`engine-${id}`} className="text-sm font-medium cursor-pointer">
+                  <Label
+                    htmlFor={`engine-${id}`}
+                    className="text-sm font-medium cursor-pointer"
+                  >
                     {engine.name}
                   </Label>
                   <Badge variant="outline" className="text-xs">
                     {engine.type}
                   </Badge>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">{engine.description}</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  {engine.description}
+                </p>
               </div>
             </div>
           ))}
@@ -193,8 +225,9 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError }: Sit
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="text-xs">
-            IndexNow Hub distributes to all participating search engines including Bing, Yandex, and others.
-            Google currently doesn't accept IndexNow pings.
+            IndexNow Hub distributes to all participating search engines
+            including Bing, Yandex, and others. Google currently doesn't accept
+            IndexNow pings.
           </AlertDescription>
         </Alert>
       </div>
@@ -207,7 +240,7 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError }: Sit
           <Settings className="w-4 h-4" />
           <span>Advanced Settings</span>
         </Label>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label className="text-sm">Concurrency: {concurrency[0]}</Label>
@@ -221,7 +254,7 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError }: Sit
             />
             <p className="text-xs text-slate-500">Parallel requests limit</p>
           </div>
-          
+
           <div className="space-y-2">
             <Label className="text-sm">Retries: {retries[0]}</Label>
             <Slider
@@ -264,7 +297,7 @@ export function SitemapScanner({ onScanStart, onScanComplete, onScanError }: Sit
         ) : (
           <Search className="w-4 h-4 mr-2" />
         )}
-        {isScanning ? 'Scanning Sitemap...' : 'Scan Sitemap'}
+        {isScanning ? "Scanning Sitemap..." : "Scan Sitemap"}
       </Button>
     </div>
   );

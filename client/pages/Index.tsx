@@ -1,23 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { SitemapScanner } from '@/components/SitemapScanner';
-import { SingleUrlPing } from '@/components/SingleUrlPing';
-import { BulkPingButton } from '@/components/BulkPingButton';
-import { BulkResultsSummary } from '@/components/BulkResultsSummary';
-import { ResultsTable } from '@/components/ResultsTable';
-import { EngineStatus } from '@/components/EngineStatus';
-import { StatusLegend } from '@/components/StatusLegend';
-import { ExportButtons } from '@/components/ExportButtons';
-import { UrlPreview } from '@/components/UrlPreview';
-import { RunSummary } from '@/components/RunSummary';
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { SitemapScanner } from "@/components/SitemapScanner";
+import { SingleUrlPing } from "@/components/SingleUrlPing";
+import { BulkPingButton } from "@/components/BulkPingButton";
+import { BulkResultsSummary } from "@/components/BulkResultsSummary";
+import { ResultsTable } from "@/components/ResultsTable";
+import { EngineStatus } from "@/components/EngineStatus";
+import { StatusLegend } from "@/components/StatusLegend";
+import { ExportButtons } from "@/components/ExportButtons";
+import { UrlPreview } from "@/components/UrlPreview";
+import { RunSummary } from "@/components/RunSummary";
 import {
   Globe,
   Zap,
@@ -27,9 +33,9 @@ import {
   CheckCircle,
   Clock,
   BarChart3,
-  Search
-} from 'lucide-react';
-import { type PingResult, type SitemapUrl } from '@shared/indexnow';
+  Search,
+} from "lucide-react";
+import { type PingResult, type SitemapUrl } from "@shared/indexnow";
 
 export default function Index() {
   const [scannedUrls, setScannedUrls] = useState<SitemapUrl[]>([]);
@@ -37,36 +43,36 @@ export default function Index() {
   const [isScanning, setIsScanning] = useState(false);
   const [isPinging, setIsPinging] = useState(false);
   const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState('sitemap');
-
+  const [activeTab, setActiveTab] = useState("sitemap");
 
   const handleScanComplete = (urls: SitemapUrl[]) => {
-    console.log('📋 Scan completed with URLs:', urls.length);
+    console.log("📋 Scan completed with URLs:", urls.length);
     setScannedUrls(urls);
-    const includedUrls = urls.filter(url => url.reason === 'included').map(url => url.url);
+    const includedUrls = urls
+      .filter((url) => url.reason === "included")
+      .map((url) => url.url);
     setSelectedUrls(includedUrls);
     setIsScanning(false); // Ensure scanning state is reset
   };
 
   const handlePingProgress = (result: PingResult) => {
-    setPingResults(prev => [...prev, result]);
+    setPingResults((prev) => [...prev, result]);
   };
 
   const handlePingComplete = (results: PingResult[]) => {
-    console.log('✅ Ping completed with results:', results.length);
+    console.log("✅ Ping completed with results:", results.length);
     setPingResults(results);
     setIsPinging(false);
   };
 
-
-  const includedUrls = scannedUrls.filter(url => url.reason === 'included');
+  const includedUrls = scannedUrls.filter((url) => url.reason === "included");
   const totalScanned = scannedUrls.length;
   const totalIncluded = includedUrls.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800">
       {/* Header */}
-      <motion.header 
+      <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm sticky top-0 z-50"
@@ -81,7 +87,8 @@ export default function Index() {
                 IndexNow Ping Console
               </h1>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Scan sitemaps, filter by dates, and ping search engines instantly
+                Scan sitemaps, filter by dates, and ping search engines
+                instantly
               </p>
             </div>
           </div>
@@ -104,13 +111,23 @@ export default function Index() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="w-full"
+            >
               <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="sitemap" className="flex items-center space-x-2">
+                <TabsTrigger
+                  value="sitemap"
+                  className="flex items-center space-x-2"
+                >
                   <Globe className="w-4 h-4" />
                   <span>Sitemap Mode</span>
                 </TabsTrigger>
-                <TabsTrigger value="single" className="flex items-center space-x-2">
+                <TabsTrigger
+                  value="single"
+                  className="flex items-center space-x-2"
+                >
                   <Zap className="w-4 h-4" />
                   <span>Single URL</span>
                 </TabsTrigger>
@@ -138,12 +155,12 @@ export default function Index() {
                       <CardContent>
                         <SitemapScanner
                           onScanStart={() => {
-                            console.log('🚀 Scan started');
+                            console.log("🚀 Scan started");
                             setIsScanning(true);
                           }}
                           onScanComplete={handleScanComplete}
                           onScanError={(error) => {
-                            console.log('❌ Scan error:', error);
+                            console.log("❌ Scan error:", error);
                             setIsScanning(false);
                           }}
                         />
@@ -167,7 +184,9 @@ export default function Index() {
                           {isScanning && (
                             <div className="flex items-center space-x-2">
                               <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                              <span className="text-sm text-slate-600 dark:text-slate-400">Scanning...</span>
+                              <span className="text-sm text-slate-600 dark:text-slate-400">
+                                Scanning...
+                              </span>
                             </div>
                           )}
                         </CardTitle>
@@ -183,16 +202,20 @@ export default function Index() {
                                 <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                                   {totalScanned.toLocaleString()}
                                 </div>
-                                <div className="text-sm text-slate-600 dark:text-slate-400">Total URLs</div>
+                                <div className="text-sm text-slate-600 dark:text-slate-400">
+                                  Total URLs
+                                </div>
                               </div>
                               <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                                 <div className="text-2xl font-bold text-green-700 dark:text-green-400">
                                   {totalIncluded.toLocaleString()}
                                 </div>
-                                <div className="text-sm text-green-600 dark:text-green-400">To Ping</div>
+                                <div className="text-sm text-green-600 dark:text-green-400">
+                                  To Ping
+                                </div>
                               </div>
                             </div>
-                            <UrlPreview 
+                            <UrlPreview
                               urls={scannedUrls}
                               selectedUrls={selectedUrls}
                               onSelectionChange={setSelectedUrls}
@@ -230,8 +253,7 @@ export default function Index() {
                       <CardDescription>
                         {totalIncluded > 0
                           ? `Send ${selectedUrls.length} selected URLs to search engines`
-                          : "Scan a sitemap first to load URLs for bulk pinging"
-                        }
+                          : "Scan a sitemap first to load URLs for bulk pinging"}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -253,14 +275,19 @@ export default function Index() {
                               No URLs to Ping
                             </h3>
                             <p className="text-slate-600 dark:text-slate-400 mb-4">
-                              Scan your sitemap first to load URLs, then you can bulk ping them to search engines.
+                              Scan your sitemap first to load URLs, then you can
+                              bulk ping them to search engines.
                             </p>
                             <Button
                               variant="outline"
                               onClick={() => {
                                 // Scroll to scan button
-                                const scanButton = document.querySelector('[data-scan-button="true"]');
-                                scanButton?.scrollIntoView({ behavior: 'smooth' });
+                                const scanButton = document.querySelector(
+                                  '[data-scan-button="true"]',
+                                );
+                                scanButton?.scrollIntoView({
+                                  behavior: "smooth",
+                                });
                               }}
                               className="flex items-center space-x-2"
                             >
@@ -286,7 +313,11 @@ export default function Index() {
                         <CardTitle className="flex items-center space-x-2">
                           <motion.div
                             animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            transition={{
+                              duration: 1,
+                              repeat: Infinity,
+                              ease: "linear",
+                            }}
                           >
                             <Clock className="w-5 h-5" />
                           </motion.div>
@@ -294,9 +325,15 @@ export default function Index() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <Progress value={(pingResults.length / selectedUrls.length) * 100} className="mb-2" />
+                        <Progress
+                          value={
+                            (pingResults.length / selectedUrls.length) * 100
+                          }
+                          className="mb-2"
+                        />
                         <p className="text-sm text-slate-600 dark:text-slate-400">
-                          {pingResults.length} of {selectedUrls.length} URLs processed
+                          {pingResults.length} of {selectedUrls.length} URLs
+                          processed
                         </p>
                       </CardContent>
                     </Card>
@@ -341,7 +378,7 @@ export default function Index() {
               className="space-y-6"
             >
               <Separator />
-              
+
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                   Results
@@ -350,7 +387,7 @@ export default function Index() {
               </div>
 
               {/* Check if this is a bulk operation or single URL operation */}
-              {new Set(pingResults.map(r => r.url)).size > 1 ? (
+              {new Set(pingResults.map((r) => r.url)).size > 1 ? (
                 // Bulk operation results
                 <>
                   <BulkResultsSummary results={pingResults} />
@@ -363,7 +400,8 @@ export default function Index() {
                     <CardHeader>
                       <CardTitle>Detailed Request Results</CardTitle>
                       <CardDescription>
-                        Individual API call results for each URL and engine combination
+                        Individual API call results for each URL and engine
+                        combination
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -406,19 +444,20 @@ export default function Index() {
                   Welcome to IndexNow Console
                 </h3>
                 <p className="text-slate-600 dark:text-slate-400 mb-6">
-                  Start by scanning a sitemap or pinging a single URL to notify search engines about your content updates.
+                  Start by scanning a sitemap or pinging a single URL to notify
+                  search engines about your content updates.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button 
-                    onClick={() => setActiveTab('sitemap')}
+                  <Button
+                    onClick={() => setActiveTab("sitemap")}
                     className="flex items-center space-x-2"
                   >
                     <Globe className="w-4 h-4" />
                     <span>Scan Sitemap</span>
                   </Button>
-                  <Button 
+                  <Button
                     variant="outline"
-                    onClick={() => setActiveTab('single')}
+                    onClick={() => setActiveTab("single")}
                     className="flex items-center space-x-2"
                   >
                     <Zap className="w-4 h-4" />
