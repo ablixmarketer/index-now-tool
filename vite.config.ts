@@ -4,15 +4,15 @@ import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/',
+  base: "/",
   server: {
     host: "::",
     port: 8080,
     proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
+      "/api": {
+        target: "http://localhost:3001",
         changeOrigin: true,
-      }
+      },
     },
     fs: {
       allow: ["./client", "./shared"],
