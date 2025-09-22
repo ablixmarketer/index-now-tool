@@ -1,4 +1,3 @@
-import { createServer as createViteServer } from "vite";
 import express from "express";
 import { readFileSync } from "fs";
 import path from "path";
