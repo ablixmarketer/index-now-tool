@@ -47,7 +47,8 @@ export async function createApp() {
       res.sendFile(indexPath);
     });
   } else {
-    // Development mode - integrate with Vite
+    // Development mode - integrate with Vite (dynamic import to avoid bundling in functions)
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
