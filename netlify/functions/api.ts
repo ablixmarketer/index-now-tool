@@ -1,5 +1,13 @@
 import serverless from "serverless-http";
 
-import { createServer } from "../../server";
+import { createApp } from "../../server";
 
-export const handler = serverless(createServer());
+let cachedHandler: any;
+
+export const handler = async (event: any, context: any) => {
+  if (!cachedHandler) {
+    const app = await createApp();
+    cachedHandler = serverless(app, { provider: "netlify" });
+  }
+  return cachedHandler(event, context);
+};
