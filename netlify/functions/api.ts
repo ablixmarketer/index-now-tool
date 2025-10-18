@@ -18,7 +18,10 @@ export const handler = async (event: any, context: any) => {
     console.error("Handler error:", error);
     return {
       statusCode: 502,
-      body: JSON.stringify({ error: "Internal server error", details: String(error) })
+      body: JSON.stringify({
+        error: "Internal server error",
+        details: String(error),
+      }),
     };
   }
 };
