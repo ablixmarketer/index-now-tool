@@ -1,19 +1,16 @@
 import serverless from "serverless-http";
-import { createApp } from "../../server";
 
-let cachedApp: any;
-
-const getHandler = async () => {
-  if (!cachedApp) {
-    cachedApp = await createApp();
-  }
-  return serverless(cachedApp);
-};
+let cachedHandler: any;
 
 export const handler = async (event: any, context: any) => {
   try {
-    const serverlessHandler = await getHandler();
-    return serverlessHandler(event, context);
+    if (!cachedHandler) {
+      // Dynamic import to avoid bundling issues
+      const { createApp } = await import("../../server/index.js");
+      const app = await createApp();
+      cachedHandler = serverless(app);
+    }
+    return cachedHandler(event, context);
   } catch (error) {
     console.error("Handler error:", error);
     return {
