@@ -38,13 +38,13 @@ export async function createApp() {
   const isProduction = process.env.NODE_ENV === "production";
 
   if (isProduction) {
-    // Serve static files from dist/spa
-    app.use(express.static(path.join(process.cwd(), "dist/spa")));
-
-    // Serve index.html for all non-API routes (SPA)
-    app.get("*", (req, res) => {
-      const indexPath = path.join(process.cwd(), "dist/spa/index.html");
-      res.sendFile(indexPath);
+    // In Netlify Functions, the SPA is served by Netlify's static hosting
+    // The function only handles API requests
+    // Return 404 for non-API requests (Netlify will serve static files)
+    app.use((req, res) => {
+      if (!req.path.startsWith("/api/")) {
+        res.status(404).json({ error: "Not found" });
+      }
     });
   } else {
     // Development mode - integrate with Vite (dynamic import to avoid bundling in functions)
