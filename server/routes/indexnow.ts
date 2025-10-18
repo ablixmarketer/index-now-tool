@@ -259,7 +259,13 @@ async function pingSingleUrl(
 
 export const handleKeyVerification: RequestHandler = async (req, res) => {
   try {
-    const { domain } = req.body;
+    // Handle Buffer body from serverless-http
+    let bodyData = req.body;
+    if (Buffer.isBuffer(bodyData)) {
+      bodyData = JSON.parse(bodyData.toString('utf-8'));
+    }
+
+    const { domain } = bodyData;
     
     if (!domain || !INDEXNOW_KEY) {
       return res.status(400).json({
