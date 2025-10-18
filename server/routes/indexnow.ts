@@ -85,7 +85,13 @@ export const handleBulkPing: RequestHandler = async (req, res) => {
 
 export const handleSinglePing: RequestHandler = async (req, res) => {
   try {
-    const validation = SinglePingRequestSchema.safeParse(req.body);
+    // Handle Buffer body from serverless-http
+    let bodyData = req.body;
+    if (Buffer.isBuffer(bodyData)) {
+      bodyData = JSON.parse(bodyData.toString('utf-8'));
+    }
+
+    const validation = SinglePingRequestSchema.safeParse(bodyData);
     
     if (!validation.success) {
       return res.status(400).json({
