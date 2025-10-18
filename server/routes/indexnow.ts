@@ -74,7 +74,10 @@ export const handleBulkPing: RequestHandler = async (req, res) => {
     } catch (keyCheckError) {
       return res.status(400).json({
         error: "Failed to verify IndexNow key",
-        message: keyCheckError instanceof Error ? keyCheckError.message : "Unknown error",
+        message:
+          keyCheckError instanceof Error
+            ? keyCheckError.message
+            : "Unknown error",
       });
     }
 
@@ -176,7 +179,10 @@ export const handleSinglePing: RequestHandler = async (req, res) => {
     } catch (keyCheckError) {
       return res.status(400).json({
         error: "Failed to verify IndexNow key",
-        message: keyCheckError instanceof Error ? keyCheckError.message : "Unknown error",
+        message:
+          keyCheckError instanceof Error
+            ? keyCheckError.message
+            : "Unknown error",
       });
     }
 
