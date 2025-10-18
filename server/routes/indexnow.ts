@@ -140,9 +140,43 @@ export const handleSinglePing: RequestHandler = async (req, res) => {
     const { url, engines: selectedEngines } = validation.data;
 
     if (!INDEXNOW_KEY) {
-      return res.status(500).json({
+      return res.status(400).json({
         error: "IndexNow key not configured",
         message: "INDEXNOW_KEY environment variable is required",
+      });
+    }
+
+    if (!INDEXNOW_KEY_LOCATION) {
+      return res.status(400).json({
+        error: "IndexNow key location not configured",
+        message: "INDEXNOW_KEY_LOCATION environment variable is required",
+      });
+    }
+
+    // Verify key file exists before proceeding
+    try {
+      const keyFileUrl = `${INDEXNOW_KEY_LOCATION}/${INDEXNOW_KEY}.txt`;
+      const keyCheckResponse = await fetch(keyFileUrl);
+
+      if (!keyCheckResponse.ok) {
+        return res.status(400).json({
+          error: "IndexNow key verification failed",
+          message: `Key file not found at ${keyFileUrl}. Please upload your key file.`,
+          keyFileUrl,
+        });
+      }
+
+      const keyContent = await keyCheckResponse.text();
+      if (keyContent.trim() !== INDEXNOW_KEY) {
+        return res.status(400).json({
+          error: "IndexNow key verification failed",
+          message: "Key file content does not match configured key",
+        });
+      }
+    } catch (keyCheckError) {
+      return res.status(400).json({
+        error: "Failed to verify IndexNow key",
+        message: keyCheckError instanceof Error ? keyCheckError.message : "Unknown error",
       });
     }
 
