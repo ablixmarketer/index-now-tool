@@ -23,11 +23,11 @@ export async function createApp() {
 
   // Debug middleware
   app.use((req, res, next) => {
-    if (req.path.startsWith('/api/')) {
+    if (req.path.startsWith("/api/")) {
       console.log(`[API] ${req.method} ${req.path}`, {
-        contentType: req.headers['content-type'],
+        contentType: req.headers["content-type"],
         bodySize: JSON.stringify(req.body).length,
-        body: req.body
+        body: req.body,
       });
     }
     next();
