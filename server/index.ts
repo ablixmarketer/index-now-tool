@@ -16,10 +16,22 @@ import {
 export async function createApp() {
   const app = express();
 
-  // Middleware
+  // Middleware - must be before routes
   app.use(cors());
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+  // Debug middleware
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+      console.log(`[API] ${req.method} ${req.path}`, {
+        contentType: req.headers['content-type'],
+        bodySize: JSON.stringify(req.body).length,
+        body: req.body
+      });
+    }
+    next();
+  });
 
   // Health check
   app.get("/api/ping", (req, res) => {
