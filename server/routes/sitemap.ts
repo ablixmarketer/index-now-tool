@@ -19,9 +19,11 @@ interface SitemapEntry {
 
 export const handleSitemapScan: RequestHandler = async (req, res) => {
   try {
+    console.log('Sitemap scan request body:', req.body);
     const validation = SitemapScanRequestSchema.safeParse(req.body);
-    
+
     if (!validation.success) {
+      console.log('Validation errors:', validation.error.errors);
       return res.status(400).json({
         error: 'Invalid request',
         details: validation.error.errors
