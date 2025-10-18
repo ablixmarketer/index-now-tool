@@ -29,9 +29,8 @@ export default defineConfig({
         "buffer",
         "querystring",
         "child_process",
-        // External dependencies that should not be bundled
-        "express",
-        "cors",
+        // Native binaries and large dependencies
+        "lightningcss",
       ],
       output: {
         format: "es",
