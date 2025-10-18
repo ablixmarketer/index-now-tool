@@ -7,7 +7,6 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["express", "cors", "dotenv", "fast-xml-parser", "p-limit", "serverless-http", "zod", "@types/xml2js", "xml2js", "lightningcss"]
 
 [[redirects]]
   force = true
