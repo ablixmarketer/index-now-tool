@@ -23,8 +23,14 @@ interface SitemapEntry {
 
 export const handleSitemapScan: RequestHandler = async (req, res) => {
   try {
-    console.log("Sitemap scan request body:", req.body);
-    const validation = SitemapScanRequestSchema.safeParse(req.body);
+    // Handle Buffer body from serverless-http
+    let bodyData = req.body;
+    if (Buffer.isBuffer(bodyData)) {
+      bodyData = JSON.parse(bodyData.toString('utf-8'));
+    }
+
+    console.log("Sitemap scan request body:", bodyData);
+    const validation = SitemapScanRequestSchema.safeParse(bodyData);
 
     if (!validation.success) {
       console.log("Validation errors:", validation.error.errors);
