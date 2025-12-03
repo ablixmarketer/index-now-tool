@@ -12,27 +12,30 @@ export async function apiCall<T = any>(
       ...options
     });
 
-    // Clone the response so we can read it multiple times if needed
-    const responseClone = response.clone();
-    
     let data: any;
-    try {
-      // Try to parse as JSON
-      data = await response.json();
-    } catch (parseError) {
-      // If JSON parsing fails, try to get text
+    const contentType = response.headers.get('content-type');
+
+    // Check if response is JSON
+    if (contentType && contentType.includes('application/json')) {
       try {
-        const text = await responseClone.text();
-        data = { error: text || 'Unknown error' };
-      } catch {
-        data = { error: 'Failed to parse response' };
+        data = await response.json();
+      } catch (parseError) {
+        data = { error: 'Failed to parse JSON response' };
+      }
+    } else {
+      // For non-JSON responses, read as text
+      try {
+        const text = await response.text();
+        data = text ? { error: text } : { error: 'Empty response' };
+      } catch (textError) {
+        data = { error: 'Failed to read response' };
       }
     }
 
     if (!response.ok) {
       throw new Error(
-        data?.message || 
-        data?.error || 
+        data?.message ||
+        data?.error ||
         `HTTP ${response.status}: ${response.statusText}`
       );
     }
