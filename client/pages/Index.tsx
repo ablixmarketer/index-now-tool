@@ -46,6 +46,7 @@ export default function Index() {
   const [isPinging, setIsPinging] = useState(false);
   const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("sitemap");
+  const [debugModeEnabled, setDebugModeEnabled] = useState(debugLogger.isDebugModeEnabled());
 
   const handleScanComplete = (urls: SitemapUrl[]) => {
     console.log("📋 Scan completed with URLs:", urls.length);
