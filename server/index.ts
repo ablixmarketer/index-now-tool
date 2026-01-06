@@ -12,6 +12,10 @@ import {
   handleSinglePing,
   handleKeyVerification,
 } from "./routes/indexnow";
+import {
+  handleSingleBingUrlSubmission,
+  handleBulkBingUrlSubmission,
+} from "./routes/bing-url-submission";
 
 export async function createApp() {
   const app = express();
@@ -46,6 +50,10 @@ export async function createApp() {
   app.post("/api/indexnow/bulk", handleBulkPing);
   app.post("/api/indexnow/single", handleSinglePing);
   app.post("/api/indexnow/verify-key", handleKeyVerification);
+
+  // Bing URL Submission API routes
+  app.post("/api/bing/submit-urls/single", handleSingleBingUrlSubmission);
+  app.post("/api/bing/submit-urls/bulk", handleBulkBingUrlSubmission);
 
   const isProduction = process.env.NODE_ENV === "production";
 
