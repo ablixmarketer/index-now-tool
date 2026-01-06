@@ -5,12 +5,14 @@ import { z } from 'zod';
 export const SingleBingUrlSubmissionSchema = z.object({
   url: z.string().url('Invalid URL'),
   engines: z.array(z.enum(['bing-url', 'bing-content'])).min(1),
+  debug: z.boolean().optional().default(false),
 });
 
 export const BulkBingUrlSubmissionSchema = z.object({
   urls: z.array(z.string().url('Invalid URL')).min(1).max(10000),
   engines: z.array(z.enum(['bing-url', 'bing-content'])).min(1),
   mode: z.enum(['update', 'delete']).default('update'),
+  debug: z.boolean().optional().default(false),
 });
 
 // ===== TYPE DEFINITIONS =====
