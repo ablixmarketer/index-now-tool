@@ -40,7 +40,7 @@ export const handleSingleBingUrlSubmission: RequestHandler = async (req, res) =>
       });
     }
 
-    const { url, engines: selectedEngines } = validation.data;
+    const { url, engines: selectedEngines, debug = false } = validation.data;
 
     // Extract domain from URL for siteUrl parameter
     const siteUrl = new URL(url).origin;
@@ -54,11 +54,33 @@ export const handleSingleBingUrlSubmission: RequestHandler = async (req, res) =>
         urlList: [url],
       };
 
+      // Log submission attempt if debug enabled
+      if (debug) {
+        logSubmissionAttempt(url, 'url', payload as unknown as Record<string, unknown>, true);
+      }
+
       const urlResults = await submitUrlsToBingAPI(payload, BING_API_KEY);
+
+      // Add debug info to results if enabled
+      if (debug) {
+        urlResults.forEach((result) => {
+          result.debug = {
+            debugModeEnabled: true,
+            payloadSent: payload,
+            httpStatus: result.status,
+            responsePreview: result.response?.slice(0, 500),
+            success: result.status === 200 || result.status === 202 || result.status === 204,
+            latency: result.latency,
+            attempts: result.attempts,
+          };
+          logSubmissionResponse(url, 'url', result.status, result.response || '', result.latency, true);
+        });
+      }
+
       results.push(...urlResults);
     }
 
-    // Note: bing-content is handled by a separate endpoint (not implemented yet)
+    // Note: bing-content is handled by a separate endpoint
     // This keeps URL submission and content submission logic separate
 
     const summary = {
@@ -73,6 +95,10 @@ export const handleSingleBingUrlSubmission: RequestHandler = async (req, res) =>
       results,
       summary,
     };
+
+    if (debug) {
+      console.log('[DEBUG] Single URL Submission Response:', response);
+    }
 
     res.json(response);
   } catch (error) {
