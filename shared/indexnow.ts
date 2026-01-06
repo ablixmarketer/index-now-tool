@@ -44,13 +44,13 @@ export const SitemapScanRequestSchema = z.object({
 
 export const BulkPingRequestSchema = z.object({
   urls: z.array(z.string().url()).min(1).max(10000),
-  engines: z.array(z.enum(['indexnow', 'bing'])),
+  engines: z.array(z.enum(['indexnow', 'bing', 'bing-url', 'bing-content'])),
   mode: z.enum(['update', 'delete']).default('update')
 });
 
 export const SinglePingRequestSchema = z.object({
   url: z.string().url(),
-  engines: z.array(z.enum(['indexnow', 'bing']))
+  engines: z.array(z.enum(['indexnow', 'bing', 'bing-url', 'bing-content']))
 });
 
 // Response types
