@@ -51,6 +51,7 @@ export interface BingSubmissionResult {
   error?: string;
   attempts: number;
   final: boolean;
+  debug?: Record<string, unknown>;
 }
 
 export interface BingUrlSubmissionResponse {
