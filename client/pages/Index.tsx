@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { DebugModeToggle } from "@/components/DebugModeToggle";
 import { SitemapScanner } from "@/components/SitemapScanner";
 import { SingleUrlPing } from "@/components/SingleUrlPing";
 import { BulkPingButton } from "@/components/BulkPingButton";
@@ -24,6 +25,7 @@ import { StatusLegend } from "@/components/StatusLegend";
 import { ExportButtons } from "@/components/ExportButtons";
 import { UrlPreview } from "@/components/UrlPreview";
 import { RunSummary } from "@/components/RunSummary";
+import { debugLogger } from "@/lib/debug-logger";
 import {
   Globe,
   Zap,
