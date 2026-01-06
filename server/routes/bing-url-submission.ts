@@ -135,7 +135,7 @@ export const handleBulkBingUrlSubmission: RequestHandler = async (req, res) => {
       });
     }
 
-    const { urls, engines: selectedEngines, mode } = validation.data;
+    const { urls, engines: selectedEngines, mode, debug = false } = validation.data;
 
     // Extract domain from first URL for siteUrl parameter
     const siteUrl = new URL(urls[0]).origin;
@@ -161,7 +161,31 @@ export const handleBulkBingUrlSubmission: RequestHandler = async (req, res) => {
               siteUrl,
               urlList: batchUrls,
             };
-            return submitUrlsToBingAPI(payload, BING_API_KEY);
+
+            if (debug) {
+              logSubmissionAttempt(batchUrls[0], 'url', payload as unknown as Record<string, unknown>, true);
+              console.log(`[DEBUG] Submitting batch of ${batchUrls.length} URLs`);
+            }
+
+            const batchResult = await submitUrlsToBingAPI(payload, BING_API_KEY);
+
+            // Add debug info to results if enabled
+            if (debug) {
+              batchResult.forEach((result) => {
+                result.debug = {
+                  debugModeEnabled: true,
+                  payloadSent: payload,
+                  httpStatus: result.status,
+                  responsePreview: result.response?.slice(0, 500),
+                  success: result.status === 200 || result.status === 202 || result.status === 204,
+                  latency: result.latency,
+                  attempts: result.attempts,
+                };
+                logSubmissionResponse(result.url, 'url', result.status, result.response || '', result.latency, true);
+              });
+            }
+
+            return batchResult;
           })
         )
       );
@@ -184,6 +208,14 @@ export const handleBulkBingUrlSubmission: RequestHandler = async (req, res) => {
       results,
       summary,
     };
+
+    if (debug) {
+      console.log('[DEBUG] Bulk URL Submission Response:', {
+        totalUrls: urls.length,
+        totalResults: results.length,
+        summary,
+      });
+    }
 
     res.json(response);
   } catch (error) {
