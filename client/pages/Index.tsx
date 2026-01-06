@@ -102,6 +102,7 @@ export default function Index() {
             </Badge>
             <DebugModeToggle onDebugModeChange={(enabled) => {
               debugLogger.setEnabled(enabled);
+              setDebugModeEnabled(enabled);
               console.log(`[SYSTEM] Debug Mode ${enabled ? 'ENABLED' : 'DISABLED'}`);
             }} />
             <ThemeToggle />
