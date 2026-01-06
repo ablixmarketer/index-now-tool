@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,11 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Globe, Zap, AlertCircle } from 'lucide-react';
 import { engines, type EngineId, type PingResult } from '@shared/indexnow';
-import { indexnowApi } from '@/lib/fetch-utils';
+import { indexnowApi, bingApi } from '@/lib/fetch-utils';
+import { debugLogger } from '@/lib/debug-logger';
+import { DebugOutputPanel } from '@/components/DebugOutputPanel';
 
 interface SingleUrlPingProps {
   onPingComplete: (results: PingResult[]) => void;
   disabled?: boolean;
+  debugModeEnabled?: boolean;
 }
 
 export function SingleUrlPing({ onPingComplete, disabled }: SingleUrlPingProps) {
