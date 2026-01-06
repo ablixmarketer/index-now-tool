@@ -70,7 +70,7 @@ export interface SitemapScanResponse {
 
 export interface PingResult {
   url: string;
-  engine: EngineId | 'bing-url' | 'bing-content';
+  engine: EngineId;
   status: number;
   meaning: string;
   latency: number;
