@@ -15,6 +15,20 @@ export const engines = {
     url: 'https://www.bing.com/indexnow',
     type: 'single' as const,
     description: 'Microsoft Bing search engine'
+  },
+  'bing-url': {
+    id: 'bing-url',
+    name: 'Bing URL Submission',
+    url: 'https://ssl.bing.com/webmaster/api.svc/json/SubmitUrlbatch',
+    type: 'bulk' as const,
+    description: 'Submit URLs to Bing Webmaster via URL Submission API'
+  },
+  'bing-content': {
+    id: 'bing-content',
+    name: 'Bing Content Submission',
+    url: 'https://ssl.bing.com/webmaster/api.svc/json/SubmitContent',
+    type: 'bulk' as const,
+    description: 'Submit full page content to Bing for indexing'
   }
 } as const;
 
