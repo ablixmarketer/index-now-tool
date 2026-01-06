@@ -198,6 +198,13 @@ export function SingleUrlPing({ onPingComplete, disabled, debugModeEnabled = fal
         )}
         {isPinging ? 'Pinging URL...' : 'Ping Single URL'}
       </Button>
+
+      {/* Debug Output - Only show when debug mode enabled and results available */}
+      <AnimatePresence>
+        {debugModeEnabled && debugResults && url && (
+          <DebugOutputPanel url={url} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
