@@ -7,6 +7,7 @@ import {
   BingSubmissionResult,
 } from '@shared/bing-submission';
 import { submitUrlsToBingAPI, SubmitUrlsPayload } from '../services/bing-submission/bing-api-client';
+import { logSubmissionAttempt, logSubmissionResponse } from '../services/bing-submission/debug-instrumenter';
 
 // Rate limiter for concurrent requests
 const limit = pLimit(2);
