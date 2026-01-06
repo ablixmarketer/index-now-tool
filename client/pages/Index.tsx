@@ -99,6 +99,10 @@ export default function Index() {
               <Activity className="w-3 h-3 mr-1" />
               Ready
             </Badge>
+            <DebugModeToggle onDebugModeChange={(enabled) => {
+              debugLogger.setEnabled(enabled);
+              console.log(`[SYSTEM] Debug Mode ${enabled ? 'ENABLED' : 'DISABLED'}`);
+            }} />
             <ThemeToggle />
           </div>
         </div>
