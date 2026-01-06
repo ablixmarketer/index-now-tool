@@ -72,3 +72,14 @@ export const indexnowApi = {
     body: JSON.stringify(data)
   })
 };
+
+export const bingApi = {
+  submitUrlBulk: (data: any) => apiCall('/api/bing/submit-urls/bulk', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  submitUrlSingle: (data: any) => apiCall('/api/bing/submit-urls/single', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  })
+};
