@@ -18,11 +18,12 @@ interface SingleUrlPingProps {
   debugModeEnabled?: boolean;
 }
 
-export function SingleUrlPing({ onPingComplete, disabled }: SingleUrlPingProps) {
+export function SingleUrlPing({ onPingComplete, disabled, debugModeEnabled = false }: SingleUrlPingProps) {
   const [url, setUrl] = useState('');
   const [selectedEngines, setSelectedEngines] = useState<EngineId[]>(['indexnow']);
   const [isPinging, setIsPinging] = useState(false);
   const [error, setError] = useState('');
+  const [debugResults, setDebugResults] = useState<PingResult[] | null>(null);
 
   const handlePing = async () => {
     if (!url.trim()) {
@@ -37,17 +38,78 @@ export function SingleUrlPing({ onPingComplete, disabled }: SingleUrlPingProps) 
 
     setError('');
     setIsPinging(true);
+    setDebugResults(null);
 
     try {
-      const data = await indexnowApi.single({
-        url: url.trim(),
-        engines: selectedEngines
-      });
+      const trimmedUrl = url.trim();
+      const allResults: PingResult[] = [];
 
-      onPingComplete(data.results);
+      // Log start if debug enabled
+      if (debugModeEnabled) {
+        console.log(`[DEBUG] Starting ping for URL: ${trimmedUrl}`);
+        console.log(`[DEBUG] Selected engines:`, selectedEngines);
+      }
+
+      // Handle different engine types
+      for (const engineId of selectedEngines) {
+        try {
+          if (engineId.startsWith('bing-')) {
+            // Use Bing API for bing-url and bing-content
+            const bingData = await bingApi.submitUrlSingleWithDebug(
+              {
+                url: trimmedUrl,
+                engines: [engineId],
+              },
+              debugModeEnabled
+            );
+            allResults.push(...bingData.results);
+
+            // Log debug info
+            if (debugModeEnabled && bingData.results) {
+              bingData.results.forEach((result: PingResult) => {
+                if (result.debug) {
+                  console.log(`[DEBUG] ${engineId} Result:`, result.debug);
+                }
+              });
+            }
+          } else {
+            // Use IndexNow API for indexnow and bing
+            const indexNowData = await indexnowApi.single({
+              url: trimmedUrl,
+              engines: [engineId],
+            });
+            allResults.push(...indexNowData.results);
+
+            if (debugModeEnabled) {
+              console.log(`[DEBUG] ${engineId} Result:`, indexNowData.results);
+            }
+          }
+        } catch (engineError) {
+          console.error(`Error with engine ${engineId}:`, engineError);
+          allResults.push({
+            url: trimmedUrl,
+            engine: engineId,
+            status: 0,
+            meaning: 'Failed',
+            latency: 0,
+            attempts: 1,
+            final: true,
+            error: engineError instanceof Error ? engineError.message : 'Unknown error',
+          });
+        }
+      }
+
+      onPingComplete(allResults);
+
+      // Store debug results if debug mode enabled
+      if (debugModeEnabled) {
+        setDebugResults(allResults);
+        console.log(`[DEBUG] Ping completed. Total results: ${allResults.length}`);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to ping URL';
       setError(message);
+      console.error('[ERROR]', message);
     } finally {
       setIsPinging(false);
     }
