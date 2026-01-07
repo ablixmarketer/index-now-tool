@@ -16,6 +16,10 @@ import {
   handleSingleBingUrlSubmission,
   handleBulkBingUrlSubmission,
 } from "./routes/bing-url-submission";
+import {
+  handleSingleBingContentSubmission,
+  handleBulkBingContentSubmission,
+} from "./routes/bing-content-submission";
 
 export async function createApp() {
   const app = express();
