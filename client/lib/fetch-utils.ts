@@ -89,5 +89,21 @@ export const bingApi = {
   submitUrlSingleWithDebug: (data: any, debugMode: boolean) => apiCall('/api/bing/submit-urls/single', {
     method: 'POST',
     body: JSON.stringify({ ...data, debug: debugMode })
+  }),
+  submitContentBulk: (data: any) => apiCall('/api/bing/submit-content/bulk', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  submitContentSingle: (data: any) => apiCall('/api/bing/submit-content/single', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  submitContentBulkWithDebug: (data: any, debugMode: boolean) => apiCall('/api/bing/submit-content/bulk', {
+    method: 'POST',
+    body: JSON.stringify({ ...data, debug: debugMode })
+  }),
+  submitContentSingleWithDebug: (data: any, debugMode: boolean) => apiCall('/api/bing/submit-content/single', {
+    method: 'POST',
+    body: JSON.stringify({ ...data, debug: debugMode })
   })
 };
