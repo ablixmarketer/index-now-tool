@@ -53,8 +53,27 @@ export function SingleUrlPing({ onPingComplete, disabled, debugModeEnabled = fal
       // Handle different engine types
       for (const engineId of selectedEngines) {
         try {
-          if (engineId.startsWith('bing-')) {
-            // Use Bing API for bing-url and bing-content
+          if (engineId === 'bing-content') {
+            // Use content submission API
+            const bingData = await bingApi.submitContentSingleWithDebug(
+              {
+                url: trimmedUrl,
+                engines: [engineId],
+              },
+              debugModeEnabled
+            );
+            allResults.push(...bingData.results);
+
+            // Log debug info
+            if (debugModeEnabled && bingData.results) {
+              bingData.results.forEach((result: PingResult) => {
+                if (result.debug) {
+                  console.log(`[DEBUG] ${engineId} Result:`, result.debug);
+                }
+              });
+            }
+          } else if (engineId === 'bing-url') {
+            // Use URL submission API for bing-url
             const bingData = await bingApi.submitUrlSingleWithDebug(
               {
                 url: trimmedUrl,
