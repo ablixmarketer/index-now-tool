@@ -59,6 +59,10 @@ export async function createApp() {
   app.post("/api/bing/submit-urls/single", handleSingleBingUrlSubmission);
   app.post("/api/bing/submit-urls/bulk", handleBulkBingUrlSubmission);
 
+  // Bing Content Submission API routes
+  app.post("/api/bing/submit-content/single", handleSingleBingContentSubmission);
+  app.post("/api/bing/submit-content/bulk", handleBulkBingContentSubmission);
+
   const isProduction = process.env.NODE_ENV === "production";
 
   if (isProduction) {
