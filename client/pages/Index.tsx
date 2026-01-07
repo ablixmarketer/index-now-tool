@@ -370,6 +370,7 @@ export default function Index() {
                       <SingleUrlPing
                         onPingComplete={handlePingComplete}
                         disabled={isPinging}
+                        debugModeEnabled={debugModeEnabled}
                       />
                     </CardContent>
                   </Card>
