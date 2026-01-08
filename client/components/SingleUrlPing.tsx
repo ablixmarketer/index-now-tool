@@ -116,11 +116,29 @@ export function SingleUrlPing({ onPingComplete, disabled, debugModeEnabled = fal
             );
             allResults.push(...bingData.results);
 
-            // Log debug info
+            // Process debug info and populate debugLogger
             if (debugModeEnabled && bingData.results) {
               bingData.results.forEach((result: PingResult) => {
                 if (result.debug) {
                   console.log(`[DEBUG] ${engineId} Result:`, result.debug);
+
+                  // Populate debugLogger with URL submission debug info
+                  const debugInfo = result.debug as any;
+                  if (debugInfo.requestPayload || debugInfo.httpStatus) {
+                    debugLogger.logUrlSubmission({
+                      url: trimmedUrl,
+                      siteUrl: new URL(trimmedUrl).origin,
+                      requestPayload: debugInfo.requestPayload || {},
+                      httpStatus: result.status || 0,
+                      bingResponse: result.response || '',
+                      bingResponseParsed: null,
+                      success: result.status === 200 || result.status === 202,
+                      retryAttempts: result.attempts || 1,
+                      retryReasons: [],
+                      rateLimitHeaders: {},
+                      latency: result.latency || 0,
+                    });
+                  }
                 }
               });
             }
