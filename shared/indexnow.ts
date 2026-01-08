@@ -78,6 +78,7 @@ export interface PingResult {
   final: boolean;
   response?: string;
   error?: string;
+  debug?: Record<string, unknown>;
 }
 
 export interface BulkPingResponse {
