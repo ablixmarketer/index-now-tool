@@ -64,11 +64,44 @@ export function SingleUrlPing({ onPingComplete, disabled, debugModeEnabled = fal
             );
             allResults.push(...bingData.results);
 
-            // Log debug info
+            // Process debug info and populate debugLogger
             if (debugModeEnabled && bingData.results) {
               bingData.results.forEach((result: PingResult) => {
                 if (result.debug) {
                   console.log(`[DEBUG] ${engineId} Result:`, result.debug);
+
+                  // Populate debugLogger with structured debug info
+                  const debugInfo = result.debug as any;
+                  if (debugInfo.contentExtraction) {
+                    debugLogger.logContentExtraction(trimmedUrl, debugInfo.contentExtraction);
+                  }
+                  if (debugInfo.metadata) {
+                    debugLogger.logMetadataExtraction(trimmedUrl, debugInfo.metadata);
+                  }
+                  if (debugInfo.schema) {
+                    debugLogger.logSchemaExtraction(trimmedUrl, debugInfo.schema);
+                  }
+
+                  // Log the full content submission debug info
+                  if (debugInfo.contentExtraction && debugInfo.metadata && debugInfo.schema) {
+                    debugLogger.logContentSubmission({
+                      url: trimmedUrl,
+                      contentExtraction: debugInfo.contentExtraction,
+                      metadata: debugInfo.metadata,
+                      schema: debugInfo.schema,
+                      contentHash: debugInfo.contentHash || '',
+                      previousHash: debugInfo.previousHash || null,
+                      contentChanged: debugInfo.contentChanged || false,
+                      requestPayload: {},
+                      httpStatus: result.status || 0,
+                      bingResponse: result.response || '',
+                      bingResponseParsed: null,
+                      success: result.status === 200 || result.status === 202,
+                      retryAttempts: result.attempts || 1,
+                      rateLimitHeaders: {},
+                      latency: result.latency || 0,
+                    });
+                  }
                 }
               });
             }
