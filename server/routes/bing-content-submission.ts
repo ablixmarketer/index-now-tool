@@ -128,9 +128,36 @@ export const handleSingleBingContentSubmission: RequestHandler = async (req, res
 
         if (debug) {
           result.debug = {
+            debugModeEnabled: true,
             reason: 'Content hash matches previous submission',
             currentHash: contentHash,
             previousHash,
+            contentChanged,
+            contentExtraction: {
+              sourceTag: extracted.sourceTag,
+              characterCount: extracted.contentLength,
+              sanitizedPreview: sanitizeForDebug(extracted.mainContent),
+              isValid: extracted.contentLength > 100,
+              isEmpty: extracted.contentLength === 0,
+              isHeaderFooterOnly: false,
+              warnings: extracted.warnings,
+            },
+            metadata: {
+              title: extracted.metadata.title,
+              description: extracted.metadata.description,
+              canonical: extracted.metadata.canonical,
+              robots: extracted.metadata.robots,
+              publishDate: extracted.metadata.publishDate,
+              lastModified: extracted.metadata.lastModified,
+            },
+            schema: {
+              found: extracted.schemas.length > 0,
+              count: extracted.schemas.length,
+              types: extracted.schemas.map((s) => (s['@type'] as string) || 'Unknown'),
+              isValid: true,
+              validationErrors: [],
+              sentToBing: false,
+            },
           };
           console.log(`[DEBUG] Skipping - content unchanged`);
         }
