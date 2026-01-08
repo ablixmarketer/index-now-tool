@@ -72,6 +72,38 @@ export function SingleUrlPing({ onPingComplete, disabled, debugModeEnabled = fal
 
                   // Populate debugLogger with structured debug info
                   const debugInfo = result.debug as any;
+
+                  // Always extract and log what's available
+                  const contentExtraction = debugInfo.contentExtraction || {
+                    sourceTag: 'none' as const,
+                    sanitizedPreview: '',
+                    characterCount: 0,
+                    isValid: false,
+                    isEmpty: true,
+                    isHeaderFooterOnly: false,
+                    warnings: debugInfo.reason ? [debugInfo.reason] : [],
+                  };
+
+                  const metadata = debugInfo.metadata || {
+                    title: '',
+                    description: '',
+                    canonical: '',
+                    robots: '',
+                    publishDate: null,
+                    lastModified: null,
+                  };
+
+                  const schema = debugInfo.schema || {
+                    found: false,
+                    count: 0,
+                    types: [],
+                    schemas: [],
+                    isValid: false,
+                    validationErrors: [],
+                    sentToBing: false,
+                  };
+
+                  // Log individual extractions
                   if (debugInfo.contentExtraction) {
                     debugLogger.logContentExtraction(trimmedUrl, debugInfo.contentExtraction);
                   }
@@ -82,26 +114,24 @@ export function SingleUrlPing({ onPingComplete, disabled, debugModeEnabled = fal
                     debugLogger.logSchemaExtraction(trimmedUrl, debugInfo.schema);
                   }
 
-                  // Log the full content submission debug info
-                  if (debugInfo.contentExtraction && debugInfo.metadata && debugInfo.schema) {
-                    debugLogger.logContentSubmission({
-                      url: trimmedUrl,
-                      contentExtraction: debugInfo.contentExtraction,
-                      metadata: debugInfo.metadata,
-                      schema: debugInfo.schema,
-                      contentHash: debugInfo.contentHash || '',
-                      previousHash: debugInfo.previousHash || null,
-                      contentChanged: debugInfo.contentChanged || false,
-                      requestPayload: {},
-                      httpStatus: result.status || 0,
-                      bingResponse: result.response || '',
-                      bingResponseParsed: null,
-                      success: result.status === 200 || result.status === 202,
-                      retryAttempts: result.attempts || 1,
-                      rateLimitHeaders: {},
-                      latency: result.latency || 0,
-                    });
-                  }
+                  // Always log the full content submission debug info
+                  debugLogger.logContentSubmission({
+                    url: trimmedUrl,
+                    contentExtraction: contentExtraction,
+                    metadata: metadata,
+                    schema: schema,
+                    contentHash: debugInfo.contentHash || '',
+                    previousHash: debugInfo.previousHash || null,
+                    contentChanged: debugInfo.contentChanged !== undefined ? debugInfo.contentChanged : false,
+                    requestPayload: {},
+                    httpStatus: result.status || 0,
+                    bingResponse: result.response || '',
+                    bingResponseParsed: null,
+                    success: (result.status === 200 || result.status === 202 || result.status === 304),
+                    retryAttempts: result.attempts || 1,
+                    rateLimitHeaders: {},
+                    latency: result.latency || 0,
+                  });
                 }
               });
             }
