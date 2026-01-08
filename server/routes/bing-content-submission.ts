@@ -41,6 +41,8 @@ export const handleSingleBingContentSubmission: RequestHandler = async (req, res
     // Validate request
     const validation = SingleBingUrlSubmissionSchema.safeParse(bodyData);
     if (!validation.success) {
+      console.error('[VALIDATION ERROR] Request body:', JSON.stringify(bodyData));
+      console.error('[VALIDATION ERROR] Zod errors:', validation.error.errors);
       return res.status(400).json({
         error: 'Invalid request',
         details: validation.error.errors,
