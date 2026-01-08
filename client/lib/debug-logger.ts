@@ -3,7 +3,7 @@ import crypto from 'crypto';
 
 export interface ContentDebugInfo {
   sourceTag: 'main' | 'article' | 'body' | 'none';
-  rawHTML: string;
+  rawHTML?: string;
   sanitizedPreview: string;
   characterCount: number;
   isValid: boolean;
