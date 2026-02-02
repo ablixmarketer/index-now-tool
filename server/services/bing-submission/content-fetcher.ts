@@ -64,6 +64,12 @@ export async function fetchUrlContent(
       throw new Error('Response body too small or empty');
     }
 
+    // Log HTML fetch details
+    console.log(`[DEBUG FETCH] URL: ${url}`);
+    console.log(`[DEBUG FETCH] HTML size: ${html.length} bytes`);
+    console.log(`[DEBUG FETCH] Has <script type="application/ld+json">: ${html.includes('type="application/ld+json"')}`);
+    console.log(`[DEBUG FETCH] Schema.org mentions: ${(html.match(/schema\.org/g) || []).length}`);
+
     return {
       url,
       html,
