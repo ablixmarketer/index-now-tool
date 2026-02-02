@@ -164,14 +164,30 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
         ?.getAttribute('content') ||
       null;
 
-    // Extract schema markup (JSON-LD)
+    // Extract schema markup (JSON-LD) - ONLY schema.org schemas
     const schemas: Record<string, unknown>[] = [];
     const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
 
     schemaScripts.forEach((script) => {
       try {
-        const schema = JSON.parse(script.textContent || '');
-        schemas.push(schema);
+        const rawText = script.textContent || '';
+
+        // Skip empty scripts
+        if (!rawText.trim()) {
+          return;
+        }
+
+        const schema = JSON.parse(rawText);
+
+        // Check if this is a schema.org schema by validating @context
+        const context = schema['@context'];
+        const isSchemaOrg =
+          context === 'https://schema.org' ||
+          (Array.isArray(context) && context.includes('https://schema.org'));
+
+        if (isSchemaOrg) {
+          schemas.push(schema);
+        }
       } catch (e) {
         warnings.push(`Invalid JSON-LD schema: ${(e as Error).message}`);
       }
