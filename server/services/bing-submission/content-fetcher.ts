@@ -209,7 +209,7 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     schemaScripts.forEach((script, index) => {
       try {
         const rawText = script.textContent || '';
-        console.log(`[DEBUG SCHEMA] Script ${index + 1}: First 150 chars: ${rawText.substring(0, 150)}`);
+        console.log(`[DEBUG SCHEMA] Script ${index + 1}: First 100 chars: ${rawText.substring(0, 100)}`);
 
         // Skip empty scripts
         if (!rawText.trim()) {
@@ -220,55 +220,31 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
         let schema: any;
         try {
           schema = JSON.parse(rawText);
-          console.log(`[DEBUG SCHEMA] Script ${index + 1} parsed successfully, @type: ${schema['@type']}`);
+          console.log(`[DEBUG SCHEMA] Script ${index + 1} parsed ✓, @type: ${JSON.stringify(schema['@type'])}`);
         } catch (parseError) {
           const err = parseError as Error;
-          console.log(`[DEBUG SCHEMA] Script ${index + 1} JSON parse error: ${err.message}`);
+          console.log(`[DEBUG SCHEMA] Script ${index + 1} JSON parse ✗: ${err.message}`);
           throw parseError;
         }
 
-        // Check if this is a schema.org schema by validating @context
+        // Simple and robust schema.org detection
         const context = schema['@context'];
-        console.log(`[DEBUG SCHEMA] Script ${index + 1} @context details:`, {
-          type: typeof context,
-          rawValue: context,
-          isString: typeof context === 'string',
-          isArray: Array.isArray(context),
-          stringMatch: typeof context === 'string' ? context === 'https://schema.org' : false,
-        });
+        const contextStr = JSON.stringify(context);
 
-        // More flexible schema.org detection
-        let isSchemaOrg = false;
+        // Check if "schema.org" appears anywhere in the @context
+        const isSchemaOrg = contextStr.includes('schema.org');
 
-        if (typeof context === 'string') {
-          // Direct string match
-          isSchemaOrg = context === 'https://schema.org' || context === 'https://schema.org/';
-          console.log(`[DEBUG SCHEMA] String @context check: ${isSchemaOrg}`);
-        } else if (Array.isArray(context)) {
-          // Array of contexts
-          isSchemaOrg = context.some(c =>
-            c === 'https://schema.org' || c === 'https://schema.org/'
-          );
-          console.log(`[DEBUG SCHEMA] Array @context check: ${isSchemaOrg}, items:`, context);
-        } else if (typeof context === 'object' && context !== null) {
-          // Sometimes @context can be an object
-          const contextStr = JSON.stringify(context);
-          isSchemaOrg = contextStr.includes('schema.org');
-          console.log(`[DEBUG SCHEMA] Object @context check: ${isSchemaOrg}, value:`, context);
-        }
+        console.log(`[DEBUG SCHEMA] Script ${index + 1}: @context = ${contextStr.substring(0, 80)}, isSchemaOrg = ${isSchemaOrg}`);
 
         if (isSchemaOrg) {
-          console.log(`[DEBUG SCHEMA] Script ${index + 1}: ✅ MATCHED as schema.org (${schema['@type']})`);
+          console.log(`[DEBUG SCHEMA] Script ${index + 1}: ✅ ACCEPTED (${schema['@type']})`);
           schemas.push(schema);
         } else {
-          // Log non-schema.org schemas found
-          const contextStr = typeof context === 'string' ? context : JSON.stringify(context);
-          console.log(`[DEBUG SCHEMA] Script ${index + 1}: ❌ Skipped non-schema.org (@context = ${contextStr})`);
-          warnings.push(`Skipped non-schema.org markup: @context = ${contextStr}`);
+          console.log(`[DEBUG SCHEMA] Script ${index + 1}: ❌ REJECTED (not schema.org)`);
         }
       } catch (e) {
         const errorMsg = `Invalid JSON-LD schema: ${(e as Error).message}`;
-        console.log(`[DEBUG SCHEMA] Script ${index + 1}: ${errorMsg}`);
+        console.log(`[DEBUG SCHEMA] Script ${index + 1}: ❌ ${errorMsg}`);
         warnings.push(errorMsg);
       }
     });
