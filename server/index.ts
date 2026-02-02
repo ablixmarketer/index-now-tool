@@ -32,9 +32,10 @@ export async function createApp() {
   // Debug middleware
   app.use((req, res, next) => {
     if (req.path.startsWith("/api/")) {
+      const bodyStr = req.body ? JSON.stringify(req.body) : '{}';
       console.log(`[API] ${req.method} ${req.path}`, {
         contentType: req.headers["content-type"],
-        bodySize: JSON.stringify(req.body).length,
+        bodySize: bodyStr.length,
         body: req.body,
       });
     }
