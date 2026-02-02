@@ -61,6 +61,13 @@ export interface ContentSubmissionDebugInfo {
   retryAttempts: number;
   rateLimitHeaders: Record<string, string>;
   latency: number;
+  error?: string | null;
+  debug?: {
+    errorType?: string;
+    errorMessage?: string;
+    errorStack?: string;
+    fullError?: string;
+  };
 }
 
 export interface FinalDebugVerdict {
