@@ -160,7 +160,7 @@ export function DebugOutputPanel({ url }: DebugOutputPanelProps) {
             <div className="flex gap-2 flex-wrap">
               {(['verdict', 'url-submission', 'content', 'metadata', 'schema', 'error', 'full'] as const).map(
                 (tab) => {
-                  const hasError = contentSubmission?.error || (contentSubmission as any)?.debug?.errorMessage;
+                  const hasError = contentSubmission?.error || contentSubmission?.debug?.errorMessage;
                   if (tab === 'error' && !hasError) return null;
 
                   return (
@@ -170,7 +170,7 @@ export function DebugOutputPanel({ url }: DebugOutputPanelProps) {
                       size="sm"
                       onClick={() => setActiveTab(tab)}
                     >
-                      {tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ')}
+                      {tab === 'error' && hasError ? `⚠️ ${tab.charAt(0).toUpperCase() + tab.slice(1)}` : tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ')}
                     </Button>
                   );
                 }
