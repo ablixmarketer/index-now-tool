@@ -205,7 +205,16 @@ Overall: ${verdict.overallStatus}
                   )}
 
                   {activeTab === 'metadata' && metadata && (
-                    <>{JSON.stringify(metadata, null, 2)}</>
+                    <>
+                      {`METADATA EXTRACTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Title: ${metadata.title || 'Not found'}
+Description: ${metadata.description || 'Not found'}
+Canonical: ${metadata.canonical || 'Not found'}
+Robots: ${metadata.robots || 'Not specified'}
+Published: ${metadata.publishDate || 'Not found'}
+Modified: ${metadata.lastModified || 'Not found'}`}
+                    </>
                   )}
 
                   {activeTab === 'schema' && schema && (
