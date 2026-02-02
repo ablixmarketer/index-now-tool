@@ -154,8 +154,9 @@ export const handleSingleBingContentSubmission: RequestHandler = async (req, res
               found: extracted.schemas.length > 0,
               count: extracted.schemas.length,
               types: extracted.schemas.map((s) => (s['@type'] as string) || 'Unknown'),
-              isValid: true,
-              validationErrors: [],
+              schemas: extracted.schemas.length > 0 ? extracted.schemas : [],
+              isValid: extracted.schemas.length > 0,
+              validationErrors: extracted.schemas.length === 0 ? ['No schema.org markup found'] : [],
               sentToBing: false,
             },
           };
