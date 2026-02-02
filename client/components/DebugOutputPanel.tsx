@@ -158,17 +158,22 @@ export function DebugOutputPanel({ url }: DebugOutputPanelProps) {
           {/* Detailed Tabs */}
           <div className="space-y-3">
             <div className="flex gap-2 flex-wrap">
-              {(['verdict', 'url-submission', 'content', 'metadata', 'schema', 'full'] as const).map(
-                (tab) => (
-                  <Button
-                    key={tab}
-                    variant={activeTab === tab ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setActiveTab(tab)}
-                  >
-                    {tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ')}
-                  </Button>
-                )
+              {(['verdict', 'url-submission', 'content', 'metadata', 'schema', 'error', 'full'] as const).map(
+                (tab) => {
+                  const hasError = contentSubmission?.error || (contentSubmission as any)?.debug?.errorMessage;
+                  if (tab === 'error' && !hasError) return null;
+
+                  return (
+                    <Button
+                      key={tab}
+                      variant={activeTab === tab ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setActiveTab(tab)}
+                    >
+                      {tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ')}
+                    </Button>
+                  );
+                }
               )}
             </div>
 
