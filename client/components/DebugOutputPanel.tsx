@@ -201,7 +201,22 @@ Overall: ${verdict.overallStatus}
                   )}
 
                   {activeTab === 'content' && contentExtraction && (
-                    <>{JSON.stringify(contentExtraction, null, 2)}</>
+                    <>
+                      {`CONTENT EXTRACTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Source: ${contentExtraction.sourceTag}
+Characters: ${contentExtraction.characterCount}
+Valid: ${contentExtraction.isValid}
+Empty: ${contentExtraction.isEmpty}
+Header/Footer Only: ${contentExtraction.isHeaderFooterOnly}
+
+Preview:
+${contentExtraction.sanitizedPreview}
+
+${contentExtraction.warnings && contentExtraction.warnings.length > 0
+  ? `\nWarnings:\n${contentExtraction.warnings.join('\n')}`
+  : ''}`}
+                    </>
                   )}
 
                   {activeTab === 'metadata' && metadata && (
