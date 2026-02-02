@@ -257,18 +257,18 @@ ${schema.schemas && schema.schemas.length > 0
                     </>
                   )}
 
-                  {activeTab === 'error' && (contentSubmission as any)?.debug && (
+                  {activeTab === 'error' && (contentSubmission?.error || contentSubmission?.debug?.errorMessage) && (
                     <>
                       {`ERROR DETAILS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Error Type: ${(contentSubmission as any).debug.errorType}
-Error Message: ${(contentSubmission as any).debug.errorMessage}
+Error Type: ${contentSubmission?.debug?.errorType || 'Unknown'}
+Error Message: ${contentSubmission?.debug?.errorMessage || contentSubmission?.error || 'No message'}
 
 Stack Trace:
-${(contentSubmission as any).debug.errorStack || 'No stack trace available'}
+${contentSubmission?.debug?.errorStack || 'No stack trace available'}
 
 Full Error:
-${(contentSubmission as any).debug.fullError}`}
+${contentSubmission?.debug?.fullError || 'No additional details'}`}
                     </>
                   )}
 
