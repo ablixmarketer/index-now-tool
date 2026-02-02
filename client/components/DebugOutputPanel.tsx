@@ -22,7 +22,7 @@ interface DebugOutputPanelProps {
 export function DebugOutputPanel({ url }: DebugOutputPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    'verdict' | 'url-submission' | 'content' | 'metadata' | 'schema' | 'full'
+    'verdict' | 'url-submission' | 'content' | 'metadata' | 'schema' | 'error' | 'full'
   >('verdict');
 
   const verdict = debugLogger.generateFinalVerdict(url);
