@@ -169,33 +169,48 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
     let totalSchemaScripts = schemaScripts.length;
 
-    schemaScripts.forEach((script) => {
+    // Debug: Log all found scripts
+    console.log(`[DEBUG SCHEMA] Total JSON-LD scripts found: ${totalSchemaScripts}`);
+
+    schemaScripts.forEach((script, index) => {
       try {
         const rawText = script.textContent || '';
+        console.log(`[DEBUG SCHEMA] Script ${index + 1}: ${rawText.substring(0, 100)}...`);
 
         // Skip empty scripts
         if (!rawText.trim()) {
+          console.log(`[DEBUG SCHEMA] Script ${index + 1}: Skipped (empty)`);
           return;
         }
 
         const schema = JSON.parse(rawText);
+        console.log(`[DEBUG SCHEMA] Script ${index + 1} parsed successfully`);
 
         // Check if this is a schema.org schema by validating @context
         const context = schema['@context'];
+        console.log(`[DEBUG SCHEMA] Script ${index + 1} @context:`, context);
+
         const isSchemaOrg =
           context === 'https://schema.org' ||
           (Array.isArray(context) && context.includes('https://schema.org'));
 
         if (isSchemaOrg) {
+          console.log(`[DEBUG SCHEMA] Script ${index + 1}: MATCHED as schema.org (${schema['@type']})`);
           schemas.push(schema);
         } else {
           // Log non-schema.org schemas found
-          warnings.push(`Skipped non-schema.org markup: @context = ${typeof context === 'string' ? context : JSON.stringify(context)}`);
+          const contextStr = typeof context === 'string' ? context : JSON.stringify(context);
+          console.log(`[DEBUG SCHEMA] Script ${index + 1}: Skipped non-schema.org (@context = ${contextStr})`);
+          warnings.push(`Skipped non-schema.org markup: @context = ${contextStr}`);
         }
       } catch (e) {
-        warnings.push(`Invalid JSON-LD schema: ${(e as Error).message}`);
+        const errorMsg = `Invalid JSON-LD schema: ${(e as Error).message}`;
+        console.log(`[DEBUG SCHEMA] Script ${index + 1}: ${errorMsg}`);
+        warnings.push(errorMsg);
       }
     });
+
+    console.log(`[DEBUG SCHEMA] Final result: Found ${schemas.length} schema.org schemas out of ${totalSchemaScripts} total JSON-LD scripts`);
 
     if (totalSchemaScripts > 0 && schemas.length === 0) {
       warnings.push(`Found ${totalSchemaScripts} JSON-LD script(s) but none contained schema.org markup`);
