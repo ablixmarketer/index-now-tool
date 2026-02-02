@@ -167,6 +167,7 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     // Extract schema markup (JSON-LD) - ONLY schema.org schemas
     const schemas: Record<string, unknown>[] = [];
     const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
+    let totalSchemaScripts = schemaScripts.length;
 
     schemaScripts.forEach((script) => {
       try {
@@ -187,11 +188,18 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
 
         if (isSchemaOrg) {
           schemas.push(schema);
+        } else {
+          // Log non-schema.org schemas found
+          warnings.push(`Skipped non-schema.org markup: @context = ${typeof context === 'string' ? context : JSON.stringify(context)}`);
         }
       } catch (e) {
         warnings.push(`Invalid JSON-LD schema: ${(e as Error).message}`);
       }
     });
+
+    if (totalSchemaScripts > 0 && schemas.length === 0) {
+      warnings.push(`Found ${totalSchemaScripts} JSON-LD script(s) but none contained schema.org markup`);
+    }
 
     // Validate content quality
     const textContent = mainContent.replace(/<[^>]*>/g, ' ').trim();
