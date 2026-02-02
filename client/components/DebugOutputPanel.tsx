@@ -30,10 +30,10 @@ export function DebugOutputPanel({ url }: DebugOutputPanelProps) {
   const contentSubmission = allLogs[`content_submission_${url}`] as
     | ContentSubmissionDebugInfo
     | undefined;
-  const urlSubmission = allLogs[`url_submission_${url}`];
-  const metadata = allLogs[`metadata_${url}`];
-  const schema = allLogs[`schema_${url}`];
-  const contentExtraction = allLogs[`content_extraction_${url}`];
+  const urlSubmission = allLogs[`url_submission_${url}`] as any;
+  const metadata = allLogs[`metadata_${url}`] as any;
+  const schema = allLogs[`schema_${url}`] as any;
+  const contentExtraction = allLogs[`content_extraction_${url}`] as any;
 
   const getStatusIcon = (status: 'PASS' | 'FAIL' | 'SKIPPED' | 'WORKING' | 'NEEDS_FIX' | 'PARTIAL') => {
     if (status === 'PASS' || status === 'WORKING') {
