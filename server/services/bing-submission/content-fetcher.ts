@@ -112,7 +112,7 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     const dom = new JSDOM(fetched.html, {
       url: fetched.url,
       pretendToBeVisual: true,
-      resources: 'ignore', // Don't load external resources
+      // Don't load external resources - just parse the HTML as-is
     });
 
     const document = dom.window.document;
