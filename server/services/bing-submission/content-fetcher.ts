@@ -200,93 +200,82 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
 
     // Extract schema markup (JSON-LD) - ONLY schema.org schemas
     const schemas: Record<string, unknown>[] = [];
-    const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
-    let totalSchemaScripts = schemaScripts.length;
 
-    // Debug: Log all found scripts
-    console.log(`[DEBUG SCHEMA] Total JSON-LD scripts found: ${totalSchemaScripts}`);
+    // PRIMARY: Try JSDOM's querySelectorAll
+    const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
+    console.log(`[DEBUG SCHEMA] querySelectorAll found ${schemaScripts.length} JSON-LD scripts`);
 
     schemaScripts.forEach((script, index) => {
       try {
         const rawText = script.textContent || '';
-        console.log(`[DEBUG SCHEMA] Script ${index + 1}: First 100 chars: ${rawText.substring(0, 100)}`);
+        console.log(`[DEBUG SCHEMA] JSDOM Script ${index + 1}: ${rawText.substring(0, 80)}...`);
 
-        // Skip empty scripts
         if (!rawText.trim()) {
-          console.log(`[DEBUG SCHEMA] Script ${index + 1}: Skipped (empty)`);
+          console.log(`[DEBUG SCHEMA] JSDOM Script ${index + 1}: empty, skipping`);
           return;
         }
 
         let schema: any;
         try {
           schema = JSON.parse(rawText);
-          console.log(`[DEBUG SCHEMA] Script ${index + 1} parsed ✓, @type: ${JSON.stringify(schema['@type'])}`);
         } catch (parseError) {
-          const err = parseError as Error;
-          console.log(`[DEBUG SCHEMA] Script ${index + 1} JSON parse ✗: ${err.message}`);
-          throw parseError;
+          console.log(`[DEBUG SCHEMA] JSDOM Script ${index + 1} parse error: ${(parseError as Error).message}`);
+          return;
         }
 
-        // Simple and robust schema.org detection
         const context = schema['@context'];
         const contextStr = JSON.stringify(context);
-
-        // Check if "schema.org" appears anywhere in the @context
         const isSchemaOrg = contextStr.includes('schema.org');
 
-        console.log(`[DEBUG SCHEMA] Script ${index + 1}: @context = ${contextStr.substring(0, 80)}, isSchemaOrg = ${isSchemaOrg}`);
+        console.log(`[DEBUG SCHEMA] JSDOM Script ${index + 1}: @context has schema.org = ${isSchemaOrg}`);
 
         if (isSchemaOrg) {
-          console.log(`[DEBUG SCHEMA] Script ${index + 1}: ✅ ACCEPTED (${schema['@type']})`);
+          console.log(`[DEBUG SCHEMA] JSDOM Script ${index + 1}: ✅ Added (${schema['@type']})`);
           schemas.push(schema);
-        } else {
-          console.log(`[DEBUG SCHEMA] Script ${index + 1}: ❌ REJECTED (not schema.org)`);
         }
       } catch (e) {
-        const errorMsg = `Invalid JSON-LD schema: ${(e as Error).message}`;
-        console.log(`[DEBUG SCHEMA] Script ${index + 1}: ❌ ${errorMsg}`);
-        warnings.push(errorMsg);
+        console.log(`[DEBUG SCHEMA] JSDOM Script ${index + 1}: ❌ Exception: ${(e as Error).message}`);
       }
     });
 
-    console.log(`[DEBUG SCHEMA] Final result: Found ${schemas.length} schema.org schemas out of ${totalSchemaScripts} total JSON-LD scripts`);
+    console.log(`[DEBUG SCHEMA] JSDOM extraction result: ${schemas.length} schemas found`);
 
-    // Fallback: Try regex-based extraction if querySelectorAll found nothing
-    if (totalSchemaScripts === 0 && schemas.length === 0) {
-      console.log(`[DEBUG SCHEMA] querySelectorAll found 0 scripts. Trying regex fallback...`);
-      const jsonLdRegex = /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi;
-      let match;
-      let regexSchemaCount = 0;
+    // FALLBACK: Always try regex on raw HTML (more reliable)
+    console.log(`[DEBUG SCHEMA] Trying regex extraction on raw HTML...`);
+    const jsonLdRegex = /<script[^>]*type=["\']application\/ld\+json["\'][^>]*>([\s\S]*?)<\/script>/gi;
+    let match;
+    let regexCount = 0;
 
-      while ((match = jsonLdRegex.exec(fetched.html)) !== null) {
-        try {
-          const jsonStr = match[1];
-          const schema = JSON.parse(jsonStr);
-          const context = schema['@context'];
+    while ((match = jsonLdRegex.exec(fetched.html)) !== null) {
+      try {
+        const jsonStr = match[1];
+        const schema = JSON.parse(jsonStr);
+        const context = schema['@context'];
+        const contextStr = JSON.stringify(context);
+        const isSchemaOrg = contextStr.includes('schema.org');
 
-          const isSchemaOrg =
-            (typeof context === 'string' && (context === 'https://schema.org' || context === 'https://schema.org/')) ||
-            (Array.isArray(context) && context.some(c => c === 'https://schema.org' || c === 'https://schema.org/'));
+        console.log(`[DEBUG SCHEMA] Regex found JSON-LD with @type=${JSON.stringify(schema['@type'])}, isSchemaOrg=${isSchemaOrg}`);
 
-          if (isSchemaOrg) {
-            console.log(`[DEBUG SCHEMA REGEX] Found schema.org markup via regex: ${schema['@type']}`);
+        if (isSchemaOrg) {
+          // Check if we already have this schema from JSDOM
+          const isDuplicate = schemas.some(s => JSON.stringify(s) === jsonStr);
+          if (!isDuplicate) {
+            console.log(`[DEBUG SCHEMA] Regex: ✅ Added (${schema['@type']})`);
             schemas.push(schema);
-            regexSchemaCount++;
+            regexCount++;
+          } else {
+            console.log(`[DEBUG SCHEMA] Regex: Duplicate, skipped`);
           }
-        } catch (e) {
-          console.log(`[DEBUG SCHEMA REGEX] Failed to parse: ${(e as Error).message}`);
         }
-      }
-
-      console.log(`[DEBUG SCHEMA REGEX] Regex fallback found ${regexSchemaCount} schemas`);
-      if (regexSchemaCount > 0) {
-        totalSchemaScripts = regexSchemaCount;
-        warnings.push(`Schema extracted via regex fallback (querySelectorAll returned 0)`);
+      } catch (e) {
+        console.log(`[DEBUG SCHEMA] Regex parse error: ${(e as Error).message}`);
       }
     }
 
-    if (totalSchemaScripts > 0 && schemas.length === 0) {
-      warnings.push(`Found ${totalSchemaScripts} JSON-LD script(s) but none contained schema.org markup`);
+    console.log(`[DEBUG SCHEMA] ✅ FINAL: ${schemas.length} total schema.org schemas extracted (${regexCount} from regex fallback)`);
+
+    if (schemas.length === 0) {
+      warnings.push('No schema.org markup found in page');
     }
 
     // Validate content quality
