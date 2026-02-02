@@ -231,9 +231,14 @@ export const handleSingleBingContentSubmission: RequestHandler = async (req, res
       }
     } catch (error) {
       const latency = 0;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : String(error);
 
       console.error(`[ERROR] Content submission failed for ${url}:`, error);
+      console.error(`[ERROR] Full error details:`, {
+        type: error instanceof Error ? error.constructor.name : typeof error,
+        message: errorMessage,
+        stack: error instanceof Error ? error.stack : 'N/A',
+      });
 
       const result: BingSubmissionResult = {
         url,
@@ -248,9 +253,10 @@ export const handleSingleBingContentSubmission: RequestHandler = async (req, res
 
       if (debug) {
         result.debug = {
-          errorType: error instanceof Error ? error.constructor.name : 'Unknown',
+          errorType: error instanceof Error ? error.constructor.name : typeof error,
           errorMessage: errorMessage,
-          fullError: error,
+          errorStack: error instanceof Error ? error.stack : 'No stack trace',
+          fullError: String(error),
         };
       }
 
