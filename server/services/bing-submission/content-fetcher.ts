@@ -29,9 +29,16 @@ export async function fetchUrlContent(
   url: string,
   timeout: number = 15000
 ): Promise<FetchedContent> {
+  console.log(`[FETCH START] Fetching: ${url}`);
+
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    const timeoutId = setTimeout(() => {
+      console.log(`[FETCH TIMEOUT] Request timeout after ${timeout}ms for ${url}`);
+      controller.abort();
+    }, timeout);
+
+    console.log(`[FETCH] Sending request with timeout: ${timeout}ms`);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -49,19 +56,25 @@ export async function fetchUrlContent(
 
     clearTimeout(timeoutId);
 
+    console.log(`[FETCH RESPONSE] Status: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const contentType = response.headers.get('content-type') || '';
+    console.log(`[FETCH] Content-Type: ${contentType}`);
+
     if (!contentType.includes('text/html')) {
       throw new Error(`Invalid content type: ${contentType}`);
     }
 
     const html = await response.text();
 
+    console.log(`[FETCH SUCCESS] Received ${html.length} bytes`);
+
     if (!html || html.length < 100) {
-      throw new Error('Response body too small or empty');
+      throw new Error(`Response body too small (${html.length} bytes) or empty`);
     }
 
     // Log HTML fetch details
@@ -77,7 +90,15 @@ export async function fetchUrlContent(
       contentType,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error ? {
+      name: error.name,
+      message: error.message,
+      cause: (error as any).cause,
+    } : error;
+
+    console.error(`[FETCH ERROR] Failed to fetch ${url}:`, errorDetails);
+
+    const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to fetch ${url}: ${message}`);
   }
 }
