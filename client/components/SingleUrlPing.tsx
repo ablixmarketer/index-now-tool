@@ -115,7 +115,7 @@ export function SingleUrlPing({ onPingComplete, disabled, debugModeEnabled = fal
                   }
 
                   // Always log the full content submission debug info
-                  debugLogger.logContentSubmission({
+                  const debugEntry: any = {
                     url: trimmedUrl,
                     contentExtraction: contentExtraction,
                     metadata: metadata,
@@ -131,7 +131,20 @@ export function SingleUrlPing({ onPingComplete, disabled, debugModeEnabled = fal
                     retryAttempts: result.attempts || 1,
                     rateLimitHeaders: {},
                     latency: result.latency || 0,
-                  });
+                    error: result.error || null,
+                  };
+
+                  // Add error details if present in debug
+                  if (debugInfo.errorType || debugInfo.errorMessage) {
+                    debugEntry.debug = {
+                      errorType: debugInfo.errorType || '',
+                      errorMessage: debugInfo.errorMessage || '',
+                      errorStack: debugInfo.errorStack || '',
+                      fullError: debugInfo.fullError || '',
+                    };
+                  }
+
+                  debugLogger.logContentSubmission(debugEntry);
                 }
               });
             }
