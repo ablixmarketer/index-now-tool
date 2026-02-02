@@ -91,9 +91,16 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     const dom = new JSDOM(fetched.html, {
       url: fetched.url,
       pretendToBeVisual: true,
+      resources: 'ignore', // Don't load external resources
     });
 
     const document = dom.window.document;
+
+    // Debug: Check if we can find any scripts
+    const allScripts = document.querySelectorAll('script');
+    console.log(`[DEBUG DOM] Total <script> tags found: ${allScripts.length}`);
+    const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+    console.log(`[DEBUG DOM] JSON-LD <script> tags found: ${jsonLdScripts.length}`);
 
     // Extract main content - priority: <main> -> <article> -> <body>
     let mainContent = '';
