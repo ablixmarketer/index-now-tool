@@ -209,7 +209,23 @@ Overall: ${verdict.overallStatus}
                   )}
 
                   {activeTab === 'schema' && schema && (
-                    <>{JSON.stringify(schema, null, 2)}</>
+                    <>
+                      {`SCHEMA MARKUP ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Found: ${schema.found}
+Count: ${schema.count}
+Types: ${Array.isArray(schema.types) ? schema.types.join(', ') : 'N/A'}
+Valid: ${schema.isValid}
+Sent to Bing: ${schema.sentToBing}
+
+${schema.validationErrors && schema.validationErrors.length > 0
+  ? `Validation Errors:\n${schema.validationErrors.join('\n')}\n`
+  : 'No validation errors'}
+
+${schema.schemas && schema.schemas.length > 0
+  ? `Schema Markup Details:\n${JSON.stringify(schema.schemas, null, 2)}`
+  : 'No schema markup found'}`}
+                    </>
                   )}
 
                   {activeTab === 'full' && (
