@@ -257,6 +257,21 @@ ${schema.schemas && schema.schemas.length > 0
                     </>
                   )}
 
+                  {activeTab === 'error' && (contentSubmission as any)?.debug && (
+                    <>
+                      {`ERROR DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Error Type: ${(contentSubmission as any).debug.errorType}
+Error Message: ${(contentSubmission as any).debug.errorMessage}
+
+Stack Trace:
+${(contentSubmission as any).debug.errorStack || 'No stack trace available'}
+
+Full Error:
+${(contentSubmission as any).debug.fullError}`}
+                    </>
+                  )}
+
                   {activeTab === 'full' && (
                     <>{JSON.stringify(allLogs, null, 2)}</>
                   )}
