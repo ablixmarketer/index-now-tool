@@ -188,7 +188,7 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     schemaScripts.forEach((script, index) => {
       try {
         const rawText = script.textContent || '';
-        console.log(`[DEBUG SCHEMA] Script ${index + 1}: ${rawText.substring(0, 100)}...`);
+        console.log(`[DEBUG SCHEMA] Script ${index + 1}: First 150 chars: ${rawText.substring(0, 150)}`);
 
         // Skip empty scripts
         if (!rawText.trim()) {
@@ -196,12 +196,19 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
           return;
         }
 
-        const schema = JSON.parse(rawText);
-        console.log(`[DEBUG SCHEMA] Script ${index + 1} parsed successfully`);
+        let schema: any;
+        try {
+          schema = JSON.parse(rawText);
+          console.log(`[DEBUG SCHEMA] Script ${index + 1} parsed successfully, @type: ${schema['@type']}`);
+        } catch (parseError) {
+          const err = parseError as Error;
+          console.log(`[DEBUG SCHEMA] Script ${index + 1} JSON parse error: ${err.message}`);
+          throw parseError;
+        }
 
         // Check if this is a schema.org schema by validating @context
         const context = schema['@context'];
-        console.log(`[DEBUG SCHEMA] Script ${index + 1} @context:`, context);
+        console.log(`[DEBUG SCHEMA] Script ${index + 1} @context type: ${typeof context}, value:`, context);
 
         const isSchemaOrg =
           context === 'https://schema.org' ||
