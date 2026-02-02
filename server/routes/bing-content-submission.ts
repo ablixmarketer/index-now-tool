@@ -111,17 +111,20 @@ export const handleSingleBingContentSubmission: RequestHandler = async (req, res
       // Step 3: Check if content changed (hash comparison)
       const contentHash = generateSimpleHash(extracted.mainContent);
       const previousHash = contentHashStore.get(url);
-      const contentChanged = contentHash !== previousHash;
+      // In debug mode, always treat content as changed to force fresh extraction and schema detection
+      const contentChanged = debug ? true : (contentHash !== previousHash);
 
       if (debug) {
         console.log(`[DEBUG] Content Hash:`, {
           current: contentHash,
           previous: previousHash,
           changed: contentChanged,
+          debugMode: true,
+          note: 'Content hash caching disabled in debug mode - always treating as changed',
         });
       }
 
-      // Skip if content hasn't changed
+      // Skip if content hasn't changed (unless in debug mode)
       if (!contentChanged && previousHash) {
         const result: BingSubmissionResult = {
           url,
