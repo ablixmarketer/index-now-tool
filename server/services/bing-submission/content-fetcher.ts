@@ -275,6 +275,40 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
 
     console.log(`[DEBUG SCHEMA] Final result: Found ${schemas.length} schema.org schemas out of ${totalSchemaScripts} total JSON-LD scripts`);
 
+    // Fallback: Try regex-based extraction if querySelectorAll found nothing
+    if (totalSchemaScripts === 0 && schemas.length === 0) {
+      console.log(`[DEBUG SCHEMA] querySelectorAll found 0 scripts. Trying regex fallback...`);
+      const jsonLdRegex = /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi;
+      let match;
+      let regexSchemaCount = 0;
+
+      while ((match = jsonLdRegex.exec(fetched.html)) !== null) {
+        try {
+          const jsonStr = match[1];
+          const schema = JSON.parse(jsonStr);
+          const context = schema['@context'];
+
+          const isSchemaOrg =
+            (typeof context === 'string' && (context === 'https://schema.org' || context === 'https://schema.org/')) ||
+            (Array.isArray(context) && context.some(c => c === 'https://schema.org' || c === 'https://schema.org/'));
+
+          if (isSchemaOrg) {
+            console.log(`[DEBUG SCHEMA REGEX] Found schema.org markup via regex: ${schema['@type']}`);
+            schemas.push(schema);
+            regexSchemaCount++;
+          }
+        } catch (e) {
+          console.log(`[DEBUG SCHEMA REGEX] Failed to parse: ${(e as Error).message}`);
+        }
+      }
+
+      console.log(`[DEBUG SCHEMA REGEX] Regex fallback found ${regexSchemaCount} schemas`);
+      if (regexSchemaCount > 0) {
+        totalSchemaScripts = regexSchemaCount;
+        warnings.push(`Schema extracted via regex fallback (querySelectorAll returned 0)`);
+      }
+    }
+
     if (totalSchemaScripts > 0 && schemas.length === 0) {
       warnings.push(`Found ${totalSchemaScripts} JSON-LD script(s) but none contained schema.org markup`);
     }
