@@ -96,9 +96,16 @@ export const handleSingleBingContentSubmission: RequestHandler = async (req, res
           sourceTag: extracted.sourceTag,
           contentLength: extracted.contentLength,
           schemaCount: extracted.schemas.length,
+          schemaTypes: extracted.schemas.map((s) => (s['@type'] as string) || 'Unknown'),
           warnings: extracted.warnings,
           preview: sanitizeForDebug(extracted.mainContent, 200),
         });
+
+        if (extracted.schemas.length > 0) {
+          console.log(`[DEBUG] Schema Markup Found:`, extracted.schemas);
+        } else {
+          console.log(`[DEBUG] No schema.org markup found on this page`);
+        }
       }
 
       // Step 3: Check if content changed (hash comparison)
