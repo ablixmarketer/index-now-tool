@@ -212,7 +212,7 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
 
     let match;
     let scriptCount = 0;
-    const allScripts: Array<{content: string; hasSchemaOrg: boolean}> = [];
+    const schemaScriptsData: Array<{content: string; hasSchemaOrg: boolean}> = [];
 
     console.log(`[SCHEMA] Hook 1: Searching for <script type="application/ld+json"> tags...`);
 
@@ -225,7 +225,7 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
       const hasSchemaOrgContext = jsonContent.includes('@context') && jsonContent.includes('schema.org');
       console.log(`[SCHEMA] Script #${scriptCount} Hook 2 check: hasSchemaOrgContext = ${hasSchemaOrgContext}`);
 
-      allScripts.push({
+      schemaScriptsData.push({
         content: jsonContent,
         hasSchemaOrg: hasSchemaOrgContext,
       });
@@ -234,7 +234,7 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     console.log(`[SCHEMA] Hook 1 result: Found ${scriptCount} total <script type="application/ld+json"> tags`);
 
     // Now process only scripts that passed Hook 2
-    allScripts.forEach((script, index) => {
+    schemaScriptsData.forEach((script, index) => {
       if (!script.hasSchemaOrg) {
         console.log(`[SCHEMA] Script #${index + 1}: Skipped (does not contain schema.org in @context)`);
         return;
