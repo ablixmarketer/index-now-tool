@@ -198,73 +198,75 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
         ?.getAttribute('content') ||
       null;
 
-    // Extract schema markup (JSON-LD) using TWO-HOOK approach
+    // Extract schema markup using BRACE-MATCHING (most reliable)
     const schemas: Record<string, unknown>[] = [];
 
-    console.log(`[SCHEMA EXTRACTION] Starting schema extraction from raw HTML...`);
-    console.log(`[SCHEMA EXTRACTION] HTML length: ${fetched.html.length} bytes`);
+    console.log(`[SCHEMA] === BRACE-MATCHING SCHEMA EXTRACTION ===`);
+    console.log(`[SCHEMA] HTML length: ${fetched.html.length} bytes`);
 
-    // Check if HTML contains the literal string
-    const hasJsonLdScripts = fetched.html.includes('application/ld+json');
-    const hasSchemaOrg = fetched.html.includes('schema.org');
-    console.log(`[SCHEMA EXTRACTION] HTML contains 'application/ld+json': ${hasJsonLdScripts}`);
-    console.log(`[SCHEMA EXTRACTION] HTML contains 'schema.org': ${hasSchemaOrg}`);
+    // Find all "@context":"https://schema.org" occurrences
+    const schemaMarker = '"@context":"https://schema.org"';
+    let searchIndex = 0;
+    let foundCount = 0;
 
-    // TWO-HOOK APPROACH:
-    // Hook 1: Find <script type="application/ld+json">
-    // Hook 2: Confirm @context":"https://schema.org" exists
+    while ((searchIndex = fetched.html.indexOf(schemaMarker, searchIndex)) !== -1) {
+      foundCount++;
+      console.log(`[SCHEMA] Found schema.org marker #${foundCount} at index ${searchIndex}`);
 
-    // Most aggressive regex - finds ALL variations of script type="application/ld+json"
-    const scriptRegex = /<script[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-
-    let match;
-    let scriptCount = 0;
-    const schemaScriptsData: Array<{content: string; hasSchemaOrg: boolean}> = [];
-
-    console.log(`[SCHEMA] Hook 1: Searching for <script type="application/ld+json"> tags...`);
-
-    while ((match = scriptRegex.exec(fetched.html)) !== null) {
-      scriptCount++;
-      const jsonContent = match[1];
-      console.log(`[SCHEMA] Found script tag #${scriptCount}: ${jsonContent.substring(0, 100)}...`);
-
-      // Hook 2: Check for @context":"https://schema.org" DIRECTLY in raw JSON string
-      const hasSchemaOrgContext = jsonContent.includes('@context') && jsonContent.includes('schema.org');
-      console.log(`[SCHEMA] Script #${scriptCount} Hook 2 check: hasSchemaOrgContext = ${hasSchemaOrgContext}`);
-
-      schemaScriptsData.push({
-        content: jsonContent,
-        hasSchemaOrg: hasSchemaOrgContext,
-      });
-    }
-
-    console.log(`[SCHEMA] Hook 1 result: Found ${scriptCount} total <script type="application/ld+json"> tags`);
-
-    // Now process only scripts that passed Hook 2
-    schemaScriptsData.forEach((script, index) => {
-      if (!script.hasSchemaOrg) {
-        console.log(`[SCHEMA] Script #${index + 1}: Skipped (does not contain schema.org in @context)`);
-        return;
+      // Search backwards for opening brace
+      let openIndex = searchIndex - 1;
+      let depth = 0;
+      while (openIndex >= 0) {
+        if (fetched.html[openIndex] === '}') depth++;
+        else if (fetched.html[openIndex] === '{') {
+          if (depth === 0) break;
+          depth--;
+        }
+        openIndex--;
       }
+
+      if (openIndex < 0) {
+        console.log(`[SCHEMA] #${foundCount}: No opening brace found`);
+        searchIndex += schemaMarker.length;
+        continue;
+      }
+
+      // Search forwards for closing brace
+      let closeIndex = searchIndex + schemaMarker.length;
+      depth = 0;
+      while (closeIndex < fetched.html.length) {
+        if (fetched.html[closeIndex] === '{') depth++;
+        else if (fetched.html[closeIndex] === '}') {
+          if (depth === 0) break;
+          depth--;
+        }
+        closeIndex++;
+      }
+
+      if (closeIndex >= fetched.html.length) {
+        console.log(`[SCHEMA] #${foundCount}: No closing brace found`);
+        searchIndex += schemaMarker.length;
+        continue;
+      }
+
+      // Extract JSON
+      const jsonStr = fetched.html.substring(openIndex, closeIndex + 1);
 
       try {
-        const schema = JSON.parse(script.content);
-        console.log(`[SCHEMA] Script #${index + 1}: ✅ PARSED successfully (@type: ${JSON.stringify(schema['@type'])})`);
+        const schema = JSON.parse(jsonStr);
+        console.log(`[SCHEMA] #${foundCount}: ✅ (@type: ${JSON.stringify(schema['@type'])})`);
         schemas.push(schema);
-      } catch (parseError) {
-        const err = parseError as Error;
-        console.log(`[SCHEMA] Script #${index + 1}: ❌ JSON parse failed: ${err.message}`);
-        console.log(`[SCHEMA] Raw content: ${script.content.substring(0, 200)}`);
-        warnings.push(`Script #${index + 1} has schema.org but JSON parse failed: ${err.message}`);
+      } catch (e) {
+        console.log(`[SCHEMA] #${foundCount}: ❌ Parse failed - ${(e as Error).message}`);
       }
-    });
 
-    console.log(`[SCHEMA] ✅ EXTRACTION COMPLETE: Found ${schemas.length} schema.org schemas out of ${scriptCount} total scripts`);
+      searchIndex += schemaMarker.length;
+    }
 
-    if (schemas.length === 0 && scriptCount > 0) {
-      warnings.push(`Found ${scriptCount} JSON-LD script(s) but none contain schema.org markup`);
-    } else if (schemas.length === 0) {
-      warnings.push('No schema.org markup found in page');
+    console.log(`[SCHEMA] === FINAL RESULT: Found ${schemas.length} schemas ===`);
+
+    if (schemas.length === 0) {
+      warnings.push('No schema.org markup found');
     }
 
     // Validate content quality
