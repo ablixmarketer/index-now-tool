@@ -202,6 +202,13 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     const schemas: Record<string, unknown>[] = [];
 
     console.log(`[SCHEMA EXTRACTION] Starting schema extraction from raw HTML...`);
+    console.log(`[SCHEMA EXTRACTION] HTML length: ${fetched.html.length} bytes`);
+
+    // Check if HTML contains the literal string
+    const hasJsonLdScripts = fetched.html.includes('application/ld+json');
+    const hasSchemaOrg = fetched.html.includes('schema.org');
+    console.log(`[SCHEMA EXTRACTION] HTML contains 'application/ld+json': ${hasJsonLdScripts}`);
+    console.log(`[SCHEMA EXTRACTION] HTML contains 'schema.org': ${hasSchemaOrg}`);
 
     // TWO-HOOK APPROACH:
     // Hook 1: Find <script type="application/ld+json">
