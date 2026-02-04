@@ -259,11 +259,20 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     // Pre-extraction: Check HEAD section specifically (common for Next.js)
     console.log(`[SCHEMA] Pre-check: Looking for schemas in HEAD section...`);
     const headMatch = fetched.html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+    let headContent = '';
     if (headMatch) {
-      const headContent = headMatch[1];
+      headContent = headMatch[1];
       const schemaCount = (headContent.match(/schema\.org/gi) || []).length;
       const jsonLdCount = (headContent.match(/application\/ld\+json/gi) || []).length;
-      console.log(`[SCHEMA] HEAD section: schema.org=${schemaCount}, JSON-LD scripts=${jsonLdCount}`);
+      const jsonLdRegexMatches = headContent.match(/<script[^>]*application\/ld\+json[^>]*>/gi) || [];
+      console.log(`[SCHEMA] HEAD section: schema.org=${schemaCount}, JSON-LD strings=${jsonLdCount}, JSON-LD script tags=${jsonLdRegexMatches.length}`);
+
+      if (jsonLdRegexMatches.length > 0) {
+        console.log(`[SCHEMA] Found ${jsonLdRegexMatches.length} JSON-LD script tags in HEAD:`);
+        jsonLdRegexMatches.slice(0, 3).forEach((tag, idx) => {
+          console.log(`[SCHEMA]   #${idx + 1}: ${tag.substring(0, 80)}...`);
+        });
+      }
     }
 
     // Strategy 1: Look for all JSON objects containing @context and schema.org
