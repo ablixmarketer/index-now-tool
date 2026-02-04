@@ -457,16 +457,38 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
       const contextCount = (fetched.html.match(/@context/gi) || []).length;
       const schemaOrgCount = (fetched.html.match(/schema\.org/gi) || []).length;
       const jsonLdCount = (fetched.html.match(/application\/ld\+json/gi) || []).length;
+      const microDataCount = (fetched.html.match(/itemtype=/gi) || []).length;
+      const rdFaCount = (fetched.html.match(/vocab=/gi) || []).length;
 
-      console.log(`[SCHEMA] ⚠️  No schemas extracted. Diagnostics:`);
-      console.log(`[SCHEMA]    - @context occurrences: ${contextCount}`);
-      console.log(`[SCHEMA]    - schema.org mentions: ${schemaOrgCount}`);
-      console.log(`[SCHEMA]    - JSON-LD script tags: ${jsonLdCount}`);
-      console.log(`[SCHEMA]    - Possible issue: Schemas may be URL references only, not JSON-LD objects`);
+      console.log(`[SCHEMA] ⚠️  No JSON-LD schemas extracted. Full Diagnostics:`);
+      console.log(`[SCHEMA]    - JSON-LD script tags: ${jsonLdCount} (expected: 1+)`);
+      console.log(`[SCHEMA]    - @context declarations: ${contextCount} (expected: 1+ if JSON-LD)`);
+      console.log(`[SCHEMA]    - schema.org mentions: ${schemaOrgCount} (found: ${schemaOrgCount > 0 ? 'YES' : 'NO'})`);
+      console.log(`[SCHEMA]    - Microdata (itemtype): ${microDataCount}`);
+      console.log(`[SCHEMA]    - RDFa (vocab): ${rdFaCount}`);
 
-      warnings.push('No schema.org markup found - but found references to schema.org');
+      // Provide specific warnings based on what was detected
+      if (jsonLdCount === 0 && schemaOrgCount > 0) {
+        console.log(`[SCHEMA]    ⚠️  Possible issue: schema.org found in text but no JSON-LD scripts`);
+        warnings.push('No JSON-LD schema markup found (only text references to schema.org)');
+      } else if (jsonLdCount > 0 && contextCount === 0) {
+        console.log(`[SCHEMA]    ⚠️  JSON-LD scripts found but missing @context fields`);
+        warnings.push('JSON-LD scripts found but no valid @context declarations');
+      } else if (schemaOrgCount === 0 && (microDataCount > 0 || rdFaCount > 0)) {
+        console.log(`[SCHEMA]    ℹ️  Page uses Microdata or RDFa, not JSON-LD`);
+        warnings.push('Page uses Microdata or RDFa structured data, not JSON-LD (schema.org)');
+      } else {
+        console.log(`[SCHEMA]    ⚠️  No schema.org markup detected in any format`);
+        warnings.push('No schema.org markup found in JSON-LD, Microdata, or RDFa formats');
+      }
     } else {
       console.log(`[SCHEMA] ✅ Successfully extracted ${schemas.length} schemas`);
+      schemas.forEach((schema, idx) => {
+        const type = Array.isArray(schema['@type'])
+          ? schema['@type'].join(', ')
+          : schema['@type'];
+        console.log(`[SCHEMA]    ${idx + 1}. Type: ${type}`);
+      });
     }
 
     // Validate content quality
