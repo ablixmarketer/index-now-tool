@@ -275,74 +275,105 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
       }
     }
 
-    // Strategy 1: Look for all JSON objects containing @context and schema.org
-    console.log(`[SCHEMA] Strategy 1: Searching for @context with schema.org...`);
-
-    const contextVariations = [
-      '@context',
-      '"@context"',
-    ];
+    // Strategy 1: Aggressive @context with schema.org brace-matching
+    console.log(`[SCHEMA] Strategy 1: AGGRESSIVE - Searching for @context with schema.org...`);
 
     let strategy1Count = 0;
-    for (const contextKey of contextVariations) {
-      let searchPos = 0;
-      while ((searchPos = fetched.html.indexOf(contextKey, searchPos)) !== -1) {
-        // Found @context key, now check if it contains schema.org
-        const nextSegment = fetched.html.substring(searchPos, Math.min(searchPos + 500, fetched.html.length));
-        if (nextSegment.includes('schema.org')) {
-          console.log(`[SCHEMA] Found @context with schema.org at index ${searchPos}`);
+    let strategy1Attempts = 0;
 
-          // Search backwards for opening brace
-          let openIndex = searchPos - 1;
-          let depth = 0;
-          while (openIndex >= 0) {
-            if (fetched.html[openIndex] === '}') depth++;
-            else if (fetched.html[openIndex] === '{') {
-              if (depth === 0) break;
-              depth--;
-            }
-            openIndex--;
+    // Find all @context occurrences (with or without quotes)
+    const contextRegex = /"?@context"?\s*:\s*["']https?:\/\/schema\.org[^"']*["']/gi;
+    let contextMatch;
+
+    // Get all positions of context matches
+    const contextMatches: { pos: number; match: string }[] = [];
+    while ((contextMatch = contextRegex.exec(fetched.html)) !== null) {
+      contextMatches.push({
+        pos: contextMatch.index,
+        match: contextMatch[0],
+      });
+    }
+
+    console.log(`[SCHEMA] Strategy 1: Found ${contextMatches.length} @context with schema.org entries`);
+
+    for (const contextItem of contextMatches) {
+      strategy1Attempts++;
+      const searchIndex = contextItem.pos;
+      console.log(`[SCHEMA] Strategy 1 #${strategy1Attempts}: Processing @context at index ${searchIndex}`);
+
+      // Search backwards for opening brace - be aggressive
+      let openIndex = searchIndex - 1;
+      let depth = 0;
+      let maxSearchBack = Math.max(0, searchIndex - 50000); // Search up to 50KB backwards
+
+      while (openIndex >= maxSearchBack) {
+        const char = fetched.html[openIndex];
+        if (char === '}') {
+          depth++;
+        } else if (char === '{') {
+          if (depth === 0) {
+            break;
           }
-
-          if (openIndex >= 0) {
-            // Search forwards for closing brace
-            let closeIndex = searchPos + contextKey.length;
-            depth = 0;
-            while (closeIndex < fetched.html.length) {
-              if (fetched.html[closeIndex] === '{') depth++;
-              else if (fetched.html[closeIndex] === '}') {
-                if (depth === 0) break;
-                depth--;
-              }
-              closeIndex++;
-            }
-
-            if (closeIndex < fetched.html.length) {
-              const jsonStr = fetched.html.substring(openIndex, closeIndex + 1);
-              const jsonHash = JSON.stringify(jsonStr).substring(0, 50); // Quick fingerprint
-
-              if (!processedSchemas.has(jsonHash)) {
-                try {
-                  const schema = JSON.parse(jsonStr);
-                  if (schema['@context'] && String(schema['@context']).includes('schema.org')) {
-                    console.log(`[SCHEMA] ✅ Strategy 1: Extracted schema (@type: ${JSON.stringify(schema['@type'])})`);
-                    schemas.push(schema);
-                    processedSchemas.add(jsonHash);
-                    strategy1Count++;
-                  }
-                } catch (e) {
-                  const err = e as Error;
-                  console.log(`[SCHEMA] Strategy 1: Parse error at ${openIndex}-${closeIndex}: ${err.message}`);
-                }
-              }
-            }
-          }
+          depth--;
         }
-        searchPos += contextKey.length;
+        openIndex--;
+      }
+
+      if (openIndex < maxSearchBack) {
+        console.log(`[SCHEMA] Strategy 1 #${strategy1Attempts}: ❌ No opening brace found`);
+        continue;
+      }
+
+      console.log(`[SCHEMA] Strategy 1 #${strategy1Attempts}: Found opening brace at index ${openIndex}`);
+
+      // Search forwards for closing brace
+      let closeIndex = searchIndex + contextItem.match.length;
+      depth = 0;
+      let maxSearchForward = Math.min(fetched.html.length, searchIndex + 100000); // Search up to 100KB forwards
+
+      while (closeIndex < maxSearchForward) {
+        const char = fetched.html[closeIndex];
+        if (char === '{') {
+          depth++;
+        } else if (char === '}') {
+          if (depth === 0) {
+            break;
+          }
+          depth--;
+        }
+        closeIndex++;
+      }
+
+      if (closeIndex >= maxSearchForward) {
+        console.log(`[SCHEMA] Strategy 1 #${strategy1Attempts}: ❌ No closing brace found`);
+        continue;
+      }
+
+      console.log(`[SCHEMA] Strategy 1 #${strategy1Attempts}: Found closing brace at index ${closeIndex}`);
+
+      // Extract and parse JSON
+      const jsonStr = fetched.html.substring(openIndex, closeIndex + 1);
+      console.log(`[SCHEMA] Strategy 1 #${strategy1Attempts}: Extracted JSON size: ${jsonStr.length} bytes`);
+
+      const jsonHash = JSON.stringify(jsonStr).substring(0, 50);
+
+      if (!processedSchemas.has(jsonHash)) {
+        try {
+          const schema = JSON.parse(jsonStr);
+          const schemaType = JSON.stringify(schema['@type']);
+          console.log(`[SCHEMA] Strategy 1 #${strategy1Attempts}: ✅ EXTRACTED (@type: ${schemaType})`);
+          schemas.push(schema);
+          processedSchemas.add(jsonHash);
+          strategy1Count++;
+        } catch (e) {
+          const err = e as Error;
+          console.log(`[SCHEMA] Strategy 1 #${strategy1Attempts}: ❌ Parse error - ${err.message}`);
+          console.log(`[SCHEMA]   First 100 chars: ${jsonStr.substring(0, 100)}`);
+        }
       }
     }
 
-    console.log(`[SCHEMA] Strategy 1 found: ${strategy1Count} schemas`);
+    console.log(`[SCHEMA] Strategy 1 found: ${strategy1Count} schemas from ${strategy1Attempts} attempts`);
 
     // Strategy 2: Extract from <script type="application/ld+json"> tags
     console.log(`[SCHEMA] Strategy 2: Looking for JSON-LD script tags...`);
