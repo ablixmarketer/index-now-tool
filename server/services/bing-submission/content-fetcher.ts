@@ -250,6 +250,7 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
       '"@context"',
     ];
 
+    let strategy1Count = 0;
     for (const contextKey of contextVariations) {
       let searchPos = 0;
       while ((searchPos = fetched.html.indexOf(contextKey, searchPos)) !== -1) {
@@ -290,13 +291,15 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
               if (!processedSchemas.has(jsonHash)) {
                 try {
                   const schema = JSON.parse(jsonStr);
-                  if (schema['@context'] && schema['@context'].includes('schema.org')) {
-                    console.log(`[SCHEMA] ✅ Extracted schema (@type: ${JSON.stringify(schema['@type'])})`);
+                  if (schema['@context'] && String(schema['@context']).includes('schema.org')) {
+                    console.log(`[SCHEMA] ✅ Strategy 1: Extracted schema (@type: ${JSON.stringify(schema['@type'])})`);
                     schemas.push(schema);
                     processedSchemas.add(jsonHash);
+                    strategy1Count++;
                   }
                 } catch (e) {
-                  // Ignore parse errors in this strategy
+                  const err = e as Error;
+                  console.log(`[SCHEMA] Strategy 1: Parse error at ${openIndex}-${closeIndex}: ${err.message}`);
                 }
               }
             }
@@ -306,7 +309,7 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
       }
     }
 
-    console.log(`[SCHEMA] Strategy 1 found: ${schemas.length} schemas`);
+    console.log(`[SCHEMA] Strategy 1 found: ${strategy1Count} schemas`);
 
     // Strategy 2: Extract from <script type="application/ld+json"> tags
     console.log(`[SCHEMA] Strategy 2: Looking for JSON-LD script tags...`);
