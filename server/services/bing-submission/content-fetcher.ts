@@ -242,6 +242,16 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
       console.log(`[SCHEMA DEBUG] #${idx + 1} (${match.type}): ${preview}`);
     });
 
+    // Pre-extraction: Check HEAD section specifically (common for Next.js)
+    console.log(`[SCHEMA] Pre-check: Looking for schemas in HEAD section...`);
+    const headMatch = fetched.html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+    if (headMatch) {
+      const headContent = headMatch[1];
+      const schemaCount = (headContent.match(/schema\.org/gi) || []).length;
+      const jsonLdCount = (headContent.match(/application\/ld\+json/gi) || []).length;
+      console.log(`[SCHEMA] HEAD section: schema.org=${schemaCount}, JSON-LD scripts=${jsonLdCount}`);
+    }
+
     // Strategy 1: Look for all JSON objects containing @context and schema.org
     console.log(`[SCHEMA] Strategy 1: Searching for @context with schema.org...`);
 
