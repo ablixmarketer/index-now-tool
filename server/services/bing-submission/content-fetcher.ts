@@ -323,27 +323,36 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
 
     // Strategy 2: Extract from <script type="application/ld+json"> tags
     console.log(`[SCHEMA] Strategy 2: Looking for JSON-LD script tags...`);
-    const scriptTagRegex = /<script[^>]*type=["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script>/gi;
-    let match;
-    let strategy2Count = 0;
-    while ((match = scriptTagRegex.exec(fetched.html)) !== null) {
-      const jsonStr = match[1].trim();
-      const jsonHash = JSON.stringify(jsonStr).substring(0, 50);
 
-      if (!processedSchemas.has(jsonHash)) {
-        try {
-          const schema = JSON.parse(jsonStr);
-          if (schema['@context'] && String(schema['@context']).includes('schema.org')) {
-            console.log(`[SCHEMA] ✅ Strategy 2: From script tag: (@type: ${JSON.stringify(schema['@type'])})`);
-            schemas.push(schema);
-            processedSchemas.add(jsonHash);
-            strategy2Count++;
-          } else {
-            console.log(`[SCHEMA] Strategy 2: Script found but no valid @context`);
+    // Try multiple regex patterns to handle variations
+    const scriptTagPatterns = [
+      /<script[^>]*type=["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script>/gi,
+      /<script[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script>/gi,
+      /<script\s+type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+    ];
+
+    let strategy2Count = 0;
+
+    for (const pattern of scriptTagPatterns) {
+      let match;
+      while ((match = pattern.exec(fetched.html)) !== null) {
+        const jsonStr = match[1].trim();
+        const jsonHash = JSON.stringify(jsonStr).substring(0, 50);
+
+        if (!processedSchemas.has(jsonHash)) {
+          try {
+            const schema = JSON.parse(jsonStr);
+            // Accept schemas even without @context - just check for @type
+            if (schema['@type'] || schema['@context']) {
+              console.log(`[SCHEMA] ✅ Strategy 2: From script tag: (@type: ${JSON.stringify(schema['@type'])})`);
+              schemas.push(schema);
+              processedSchemas.add(jsonHash);
+              strategy2Count++;
+            }
+          } catch (e) {
+            const err = e as Error;
+            console.log(`[SCHEMA] Strategy 2: Parse error at position - ${err.message}`);
           }
-        } catch (e) {
-          const err = e as Error;
-          console.log(`[SCHEMA] Strategy 2: Parse error - ${err.message}, length: ${jsonStr.length}`);
         }
       }
     }
