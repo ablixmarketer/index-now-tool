@@ -619,6 +619,46 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     }
 
     console.log(`[SCHEMA] Strategy 4 found: ${strategy4Count} schemas`);
+
+    // Strategy 5: Extract from Next.js Hydration Format
+    console.log(`[SCHEMA] Strategy 5: Checking for Next.js hydration format...`);
+    const hasNextJsHydration = /self\.__next_s|__next_s=/.test(fetched.html);
+    console.log(`[SCHEMA] Has Next.js hydration: ${hasNextJsHydration}`);
+
+    if (hasNextJsHydration && schemas.length === 0) {
+      console.log(`[SCHEMA] Attempting to extract from Next.js hydration format...`);
+      let strategy5Count = 0;
+
+      // Pattern: [0,{"type":"application/ld+json","children":"JSON_STRING","id":"schema-id"}]
+      const nextJsRegex = /\[0,\s*\{\s*"type"\s*:\s*"application\/ld\+json"\s*,\s*"children"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+      let nextJsMatch;
+
+      while ((nextJsMatch = nextJsRegex.exec(fetched.html)) !== null) {
+        try {
+          const escapedJson = nextJsMatch[1];
+          const jsonString = escapedJson
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, '\\')
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '\r')
+            .replace(/\\t/g, '\t');
+
+          const parsed = JSON.parse(jsonString);
+
+          if (parsed['@type'] || parsed['@context']) {
+            console.log(`[SCHEMA] ✅ Strategy 5: Extracted from Next.js hydration (@type: ${JSON.stringify(parsed['@type'])})`);
+            schemas.push(parsed);
+            strategy5Count++;
+          }
+        } catch (e) {
+          // Skip invalid entries
+          const err = e as Error;
+          console.log(`[SCHEMA] Strategy 5: Parse error - ${err.message}`);
+        }
+      }
+
+      console.log(`[SCHEMA] Strategy 5 found: ${strategy5Count} schemas from Next.js hydration`);
+    }
     console.log(`[SCHEMA] === FINAL RESULT: Found ${schemas.length} total unique schemas ===`);
 
     if (schemas.length === 0) {
