@@ -409,6 +409,47 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     }
 
     console.log(`[SCHEMA] Strategy 3 processed: ${strategy3Attempts} schema.org mentions, found ${strategy3Count} schemas`);
+
+    // Strategy 4: Look for ALL script tags that might contain JSON (regardless of schema.org mention)
+    console.log(`[SCHEMA] Strategy 4: Scanning all script tags for potential schema markup...`);
+    let strategy4Count = 0;
+
+    // Find all script tags
+    const allScriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+    let scriptMatch;
+    while ((scriptMatch = allScriptRegex.exec(fetched.html)) !== null) {
+      const content = scriptMatch[1].trim();
+      const jsonHash = JSON.stringify(content).substring(0, 50);
+
+      // Try to parse any script content that starts with { or [
+      if ((content.startsWith('{') || content.startsWith('[')) && !processedSchemas.has(jsonHash)) {
+        try {
+          const parsed = JSON.parse(content);
+
+          // Check if it's a schema object
+          if (Array.isArray(parsed)) {
+            // Array of schemas
+            for (const item of parsed) {
+              if (item['@type'] || item['@context']) {
+                schemas.push(item);
+                processedSchemas.add(jsonHash);
+                strategy4Count++;
+              }
+            }
+          } else if (parsed['@type'] || parsed['@context']) {
+            // Single schema
+            schemas.push(parsed);
+            processedSchemas.add(jsonHash);
+            strategy4Count++;
+            console.log(`[SCHEMA] ✅ Strategy 4: Found schema (@type: ${JSON.stringify(parsed['@type'])})`);
+          }
+        } catch (e) {
+          // Not JSON, skip
+        }
+      }
+    }
+
+    console.log(`[SCHEMA] Strategy 4 found: ${strategy4Count} schemas`);
     console.log(`[SCHEMA] === FINAL RESULT: Found ${schemas.length} total unique schemas ===`);
 
     if (schemas.length === 0) {
