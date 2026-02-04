@@ -81,21 +81,82 @@ export async function fetchUrlContent(
     console.log(`[DEBUG FETCH] URL: ${url}`);
     console.log(`[DEBUG FETCH] HTML size: ${html.length} bytes`);
 
+    // ===== SERVER-SIDE RENDERING CHECK =====
+    console.log(`\n[SERVER-SIDE RENDERING CHECK]`);
+
     // Check for JSON-LD in multiple ways
     const hasJsonLdExact = html.includes('type="application/ld+json"');
     const hasJsonLdSingle = html.includes("type='application/ld+json'");
-    const hasJsonLdNoSpace = html.includes('type="application/ld+json"');
     const hasJsonLdSpaces = html.includes('type = "application/ld+json"');
     const hasJsonLdRegex = /type\s*=\s*["']?application\/ld\+json["']?/i.test(html);
     const hasApplicationLdJson = html.includes('application/ld+json');
 
-    console.log(`[DEBUG FETCH] JSON-LD detection:`);
-    console.log(`[DEBUG FETCH]   - type="application/ld+json": ${hasJsonLdExact}`);
-    console.log(`[DEBUG FETCH]   - type='application/ld+json': ${hasJsonLdSingle}`);
-    console.log(`[DEBUG FETCH]   - Any whitespace variations: ${hasJsonLdRegex}`);
-    console.log(`[DEBUG FETCH]   - Just application/ld+json: ${hasApplicationLdJson}`);
+    console.log(`[SSR] JSON-LD Script Tags Detection:`);
+    console.log(`[SSR]   - type="application/ld+json": ${hasJsonLdExact}`);
+    console.log(`[SSR]   - type='application/ld+json': ${hasJsonLdSingle}`);
+    console.log(`[SSR]   - With spaces: ${hasJsonLdSpaces}`);
+    console.log(`[SSR]   - Regex match (any variation): ${hasJsonLdRegex}`);
+    console.log(`[SSR]   - Contains "application/ld+json": ${hasApplicationLdJson}`);
 
-    console.log(`[DEBUG FETCH] Schema.org mentions: ${(html.match(/schema\.org/g) || []).length}`);
+    // Count occurrences
+    const jsonLdMatches = html.match(/<script[^>]*application\/ld\+json[^>]*>/gi) || [];
+    console.log(`[SSR] Total JSON-LD script tags found: ${jsonLdMatches.length}`);
+
+    // Check for @context in HTML
+    const contextMatches = html.match(/"?@context"?\s*:\s*["']https?:\/\/schema\.org[^"']*["']/gi) || [];
+    console.log(`[SSR] Total @context with schema.org found: ${contextMatches.length}`);
+
+    // Schema.org mentions
+    const schemaOrgCount = (html.match(/schema\.org/gi) || []).length;
+    console.log(`[SSR] Total schema.org mentions: ${schemaOrgCount}`);
+
+    // Check HEAD vs BODY
+    const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+
+    if (headMatch) {
+      const headContent = headMatch[1];
+      const headJsonLd = (headContent.match(/application\/ld\+json/gi) || []).length;
+      console.log(`[SSR] JSON-LD in HEAD section: ${headJsonLd} tags`);
+    }
+
+    if (bodyMatch) {
+      const bodyContent = bodyMatch[1];
+      const bodyJsonLd = (bodyContent.match(/application\/ld\+json/gi) || []).length;
+      console.log(`[SSR] JSON-LD in BODY section: ${bodyJsonLd} tags`);
+    }
+
+    // ===== CLIENT-SIDE RENDERING INDICATORS =====
+    console.log(`\n[CLIENT-SIDE RENDERING CHECK]`);
+
+    // Check for Next.js hydration markers
+    const hasNextJs = html.includes('_next') || html.includes('__NEXT');
+    const hasReactRoot = html.includes('__react');
+    const hasDataReactRoot = html.includes('data-reactroot');
+    const hasReactDom = html.includes('ReactDOM');
+
+    console.log(`[CSR] Next.js Framework: ${hasNextJs}`);
+    console.log(`[CSR] React hydration markers: ${hasReactRoot || hasDataReactRoot}`);
+    console.log(`[CSR] ReactDOM references: ${hasReactDom}`);
+
+    // Check for script tags that might inject schemas
+    const allScriptTags = html.match(/<script[^>]*>/gi) || [];
+    console.log(`[CSR] Total <script> tags: ${allScriptTags.length}`);
+
+    // Look for schema injection patterns
+    const hasSchemaInScript = /schema\s*=|setSchema|addSchema|initSchema/i.test(html);
+    console.log(`[CSR] Schema injection patterns found: ${hasSchemaInScript}`);
+
+    // ===== RECOMMENDATION =====
+    if (schemaOrgCount > 0 && !hasJsonLdRegex) {
+      console.log(`\n[⚠️  IMPORTANT] Schema.org found (${schemaOrgCount}x) but NO JSON-LD script tags!`);
+      console.log(`[RECOMMENDATION] Schemas may be injected CLIENT-SIDE via JavaScript`);
+      console.log(`[RECOMMENDATION] Consider using browser automation (Puppeteer) for full SSR capture`);
+    } else if (hasJsonLdRegex && jsonLdMatches.length > 0) {
+      console.log(`\n[✅ GOOD] Schemas found in SERVER-SIDE rendered HTML`);
+    } else {
+      console.log(`\n[ℹ️  INFO] No schema.org markup detected in server response`);
+    }
 
     return {
       url,
