@@ -218,6 +218,27 @@ export const handleSingleBingContentSubmission: RequestHandler = async (req, res
         if (debug) {
           logSubmissionResponse(url, 'content', submissionResult.status, submissionResult.response || '', submissionResult.latency, true);
 
+          // Add rendering diagnostics
+          const htmlSize = fetched.html.length;
+          const hasJsonLd = /application\/ld\+json/i.test(fetched.html);
+          const contextCount = (fetched.html.match(/"?@context"?\s*:\s*["']https?:\/\/schema\.org/gi) || []).length;
+          const schemaOrgCount = (fetched.html.match(/schema\.org/gi) || []).length;
+          const hasNextJs = fetched.html.includes('_next') || fetched.html.includes('__NEXT');
+
+          let renderingStatus = 'UNKNOWN';
+          let renderingDiagnosis = 'Unable to determine rendering method';
+
+          if (schemaOrgCount > 0 && !hasJsonLd && extracted.schemas.length === 0) {
+            renderingStatus = 'LIKELY CLIENT-SIDE';
+            renderingDiagnosis = 'schema.org found in text but NO JSON-LD scripts - schemas injected via JavaScript';
+          } else if (hasJsonLd && extracted.schemas.length > 0) {
+            renderingStatus = 'SERVER-SIDE';
+            renderingDiagnosis = 'Schemas found in initial server response';
+          } else if (schemaOrgCount === 0 && extracted.schemas.length === 0) {
+            renderingStatus = 'NO SCHEMAS';
+            renderingDiagnosis = 'No schema.org markup detected in any form';
+          }
+
           submissionResult.debug = {
             debugModeEnabled: true,
             contentExtraction: {
@@ -245,6 +266,16 @@ export const handleSingleBingContentSubmission: RequestHandler = async (req, res
               isValid: extracted.schemas.length > 0,
               validationErrors: extracted.schemas.length === 0 ? ['No schema.org markup found'] : [],
               sentToBing: extracted.schemas.length > 0,
+            },
+            rendering: {
+              status: renderingStatus,
+              diagnosis: renderingDiagnosis,
+              htmlSize: htmlSize,
+              hasJsonLdScripts: hasJsonLd,
+              contextDeclarationsFound: contextCount,
+              schemaOrgMentions: schemaOrgCount,
+              nextJsFramework: hasNextJs,
+              extractedSchemas: extracted.schemas.length,
             },
             contentHash,
             previousHash,
