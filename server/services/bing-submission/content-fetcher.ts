@@ -205,6 +205,22 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     console.log(`[SCHEMA] === COMPREHENSIVE SCHEMA EXTRACTION ===`);
     console.log(`[SCHEMA] HTML length: ${fetched.html.length} bytes`);
 
+    // First, let's diagnose where schema.org mentions are and what's around them
+    console.log(`[SCHEMA DEBUG] Analyzing schema.org occurrences...`);
+    let schemaOrgPos = 0;
+    const schemaOrgMatches: Array<{ pos: number; context: string }> = [];
+    while ((schemaOrgPos = fetched.html.indexOf('schema.org', schemaOrgPos)) !== -1) {
+      const start = Math.max(0, schemaOrgPos - 100);
+      const end = Math.min(fetched.html.length, schemaOrgPos + 150);
+      const context = fetched.html.substring(start, end);
+      schemaOrgMatches.push({ pos: schemaOrgPos, context });
+      schemaOrgPos += 10;
+    }
+    console.log(`[SCHEMA DEBUG] Found ${schemaOrgMatches.length} schema.org mentions:`);
+    schemaOrgMatches.slice(0, 3).forEach((match, idx) => {
+      console.log(`[SCHEMA DEBUG] Match #${idx + 1} at ${match.pos}: ...${match.context.substring(0, 80)}...`);
+    });
+
     // Strategy 1: Look for all JSON objects containing @context and schema.org
     console.log(`[SCHEMA] Strategy 1: Searching for @context with schema.org...`);
 
