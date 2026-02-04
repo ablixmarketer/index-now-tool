@@ -315,6 +315,7 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     console.log(`[SCHEMA] Strategy 2: Looking for JSON-LD script tags...`);
     const scriptTagRegex = /<script[^>]*type=["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script>/gi;
     let match;
+    let strategy2Count = 0;
     while ((match = scriptTagRegex.exec(fetched.html)) !== null) {
       const jsonStr = match[1].trim();
       const jsonHash = JSON.stringify(jsonStr).substring(0, 50);
@@ -323,17 +324,21 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
         try {
           const schema = JSON.parse(jsonStr);
           if (schema['@context'] && String(schema['@context']).includes('schema.org')) {
-            console.log(`[SCHEMA] ✅ From script tag: (@type: ${JSON.stringify(schema['@type'])})`);
+            console.log(`[SCHEMA] ✅ Strategy 2: From script tag: (@type: ${JSON.stringify(schema['@type'])})`);
             schemas.push(schema);
             processedSchemas.add(jsonHash);
+            strategy2Count++;
+          } else {
+            console.log(`[SCHEMA] Strategy 2: Script found but no valid @context`);
           }
         } catch (e) {
-          // Ignore parse errors
+          const err = e as Error;
+          console.log(`[SCHEMA] Strategy 2: Parse error - ${err.message}, length: ${jsonStr.length}`);
         }
       }
     }
 
-    console.log(`[SCHEMA] Strategy 2 found: ${schemas.length - processedSchemas.size + processedSchemas.size} total schemas`);
+    console.log(`[SCHEMA] Strategy 2 found: ${strategy2Count} schemas`);
 
     // Strategy 3: Try JSON.parse on segments containing "schema.org"
     console.log(`[SCHEMA] Strategy 3: Extracting all schema.org objects...`);
