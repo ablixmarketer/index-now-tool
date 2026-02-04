@@ -382,6 +382,36 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
 
     console.log(`[SCHEMA] Strategy 2 found: ${strategy2Count} schemas`);
 
+    // Strategy 2.5: Extract from HEAD section directly (for Next.js)
+    if (headContent && strategy2Count === 0) {
+      console.log(`[SCHEMA] Strategy 2.5: Extracting schemas from HEAD section...`);
+      const headScriptRegex = /<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi;
+      let headMatch;
+      let strategy25Count = 0;
+
+      while ((headMatch = headScriptRegex.exec(headContent)) !== null) {
+        const jsonStr = headMatch[1].trim();
+        const jsonHash = JSON.stringify(jsonStr).substring(0, 50);
+
+        if (!processedSchemas.has(jsonHash)) {
+          try {
+            const schema = JSON.parse(jsonStr);
+            if (schema['@type'] || schema['@context']) {
+              console.log(`[SCHEMA] ✅ Strategy 2.5: From HEAD: (@type: ${JSON.stringify(schema['@type'])})`);
+              schemas.push(schema);
+              processedSchemas.add(jsonHash);
+              strategy25Count++;
+            }
+          } catch (e) {
+            const err = e as Error;
+            console.log(`[SCHEMA] Strategy 2.5: Parse error - ${err.message}`);
+          }
+        }
+      }
+
+      console.log(`[SCHEMA] Strategy 2.5 found: ${strategy25Count} schemas`);
+    }
+
     // Strategy 3: Try JSON.parse on segments containing "schema.org"
     console.log(`[SCHEMA] Strategy 3: Extracting all schema.org JSON objects...`);
     let pos = 0;
