@@ -208,17 +208,38 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     // First, let's diagnose where schema.org mentions are and what's around them
     console.log(`[SCHEMA DEBUG] Analyzing schema.org occurrences...`);
     let schemaOrgPos = 0;
-    const schemaOrgMatches: Array<{ pos: number; context: string }> = [];
+    const schemaOrgMatches: Array<{ pos: number; context: string; type: string }> = [];
     while ((schemaOrgPos = fetched.html.indexOf('schema.org', schemaOrgPos)) !== -1) {
-      const start = Math.max(0, schemaOrgPos - 100);
-      const end = Math.min(fetched.html.length, schemaOrgPos + 150);
+      const start = Math.max(0, schemaOrgPos - 200);
+      const end = Math.min(fetched.html.length, schemaOrgPos + 250);
       const context = fetched.html.substring(start, end);
-      schemaOrgMatches.push({ pos: schemaOrgPos, context });
+
+      // Determine what type of schema.org mention this is
+      let type = 'unknown';
+      if (context.includes('"@context"')) type = '@context';
+      else if (context.includes('@context')) type = '@context (unquoted)';
+      else if (context.includes('application/ld+json')) type = 'JSON-LD script';
+      else if (context.includes('schema#') || context.includes('http://schema.org')) type = 'URL reference';
+      else if (context.includes('{') && context.includes('}')) type = 'JSON object';
+
+      schemaOrgMatches.push({ pos: schemaOrgPos, context, type });
       schemaOrgPos += 10;
     }
-    console.log(`[SCHEMA DEBUG] Found ${schemaOrgMatches.length} schema.org mentions:`);
-    schemaOrgMatches.slice(0, 3).forEach((match, idx) => {
-      console.log(`[SCHEMA DEBUG] Match #${idx + 1} at ${match.pos}: ...${match.context.substring(0, 80)}...`);
+
+    console.log(`[SCHEMA DEBUG] Found ${schemaOrgMatches.length} schema.org mentions`);
+
+    // Group by type
+    const byType = schemaOrgMatches.reduce((acc, match) => {
+      acc[match.type] = (acc[match.type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    console.log(`[SCHEMA DEBUG] Breakdown:`, byType);
+
+    // Show first few matches of each type
+    schemaOrgMatches.slice(0, 5).forEach((match, idx) => {
+      const preview = match.context.length > 100 ? match.context.substring(0, 100) + '...' : match.context;
+      console.log(`[SCHEMA DEBUG] #${idx + 1} (${match.type}): ${preview}`);
     });
 
     // Strategy 1: Look for all JSON objects containing @context and schema.org
