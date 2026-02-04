@@ -493,18 +493,27 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
 
     // Validate content quality
     const textContent = mainContent.replace(/<[^>]*>/g, ' ').trim();
+    const wordCount = textContent.split(/\s+/).filter(w => w.length > 0).length;
 
+    // Content quality checks
     if (textContent.length < 100) {
-      warnings.push('Text content is too short');
+      warnings.push('⚠️ Text content is too short (< 100 characters)');
+    } else if (textContent.length < 300) {
+      warnings.push('⚠️ Text content is short (< 300 characters)');
     }
 
-    if (textContent.split(' ').length < 50) {
-      warnings.push('Text content has very few words');
+    if (wordCount < 50) {
+      warnings.push(`⚠️ Text content has very few words (${wordCount} words)`);
+    } else if (wordCount < 100) {
+      warnings.push(`ℹ️ Text content is relatively short (${wordCount} words)`);
     }
 
-    // Check for duplicate/minimal content
+    // Check for duplicate/minimal content - but don't warn if this is expected
     if (mainContent.includes('<script') || mainContent.includes('<style')) {
-      warnings.push('Content contains script or style tags');
+      // This is normal for extracted content - it's just a notice
+      if (mainContent.match(/<script/gi)?.length ?? 0 > 5) {
+        warnings.push('ℹ️ Content contains many script tags (HTML not fully cleaned)');
+      }
     }
 
     return {
