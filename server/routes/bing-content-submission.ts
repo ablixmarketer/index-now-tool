@@ -101,6 +101,28 @@ export const handleSingleBingContentSubmission: RequestHandler = async (req, res
           preview: sanitizeForDebug(extracted.mainContent, 200),
         });
 
+        // Add diagnostic info to help understand server vs client rendering
+        const htmlSize = fetched.html.length;
+        const hasJsonLd = /application\/ld\+json/i.test(fetched.html);
+        const contextCount = (fetched.html.match(/"?@context"?\s*:\s*["']https?:\/\/schema\.org/gi) || []).length;
+        const schemaOrgCount = (fetched.html.match(/schema\.org/gi) || []).length;
+        const hasNextJs = fetched.html.includes('_next') || fetched.html.includes('__NEXT');
+
+        console.log(`[RENDERING DIAGNOSTICS]`);
+        console.log(`  HTML Size: ${htmlSize} bytes`);
+        console.log(`  Has JSON-LD: ${hasJsonLd}`);
+        console.log(`  @context with schema.org: ${contextCount}`);
+        console.log(`  Total schema.org mentions: ${schemaOrgCount}`);
+        console.log(`  Next.js Framework: ${hasNextJs}`);
+        console.log(`  Schemas Found: ${extracted.schemas.length}`);
+
+        if (schemaOrgCount > 0 && !hasJsonLd && extracted.schemas.length === 0) {
+          console.log(`[⚠️  DIAGNOSIS] LIKELY CLIENT-SIDE RENDERING`);
+          console.log(`  - schema.org is mentioned but NO JSON-LD scripts found`);
+          console.log(`  - Schemas appear to be injected by JavaScript after page load`);
+          console.log(`  - Solution: Use Puppeteer/Playwright for full JS rendering`);
+        }
+
         if (extracted.schemas.length > 0) {
           console.log(`[DEBUG] Schema Markup Found:`, extracted.schemas);
         } else {
