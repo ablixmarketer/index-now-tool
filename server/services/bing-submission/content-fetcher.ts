@@ -198,124 +198,162 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
         ?.getAttribute('content') ||
       null;
 
-    // Extract schema markup using BRACE-MATCHING (flexible for various JSON formats)
+    // Extract schema markup using multiple detection strategies
     const schemas: Record<string, unknown>[] = [];
+    const processedSchemas = new Set<string>(); // Track unique schemas to avoid duplicates
 
-    console.log(`[SCHEMA] === FLEXIBLE BRACE-MATCHING SCHEMA EXTRACTION ===`);
+    console.log(`[SCHEMA] === COMPREHENSIVE SCHEMA EXTRACTION ===`);
     console.log(`[SCHEMA] HTML length: ${fetched.html.length} bytes`);
 
-    // Search for multiple variations of schema.org context markers
-    const schemaMarkers = [
-      '"@context":"https://schema.org"',  // No spaces
-      '"@context": "https://schema.org"',  // Space after colon
-      '"@context" : "https://schema.org"', // Spaces around colon
-      '@context: "https://schema.org"',    // No leading quote
-      '@context: "https://schema.org"',    // Alternative format
+    // Strategy 1: Look for all JSON objects containing @context and schema.org
+    console.log(`[SCHEMA] Strategy 1: Searching for @context with schema.org...`);
+
+    const contextVariations = [
+      '@context',
+      '"@context"',
     ];
 
-    // Collect all possible schema.org marker positions
-    const markerPositions: Array<{ pos: number; marker: string }> = [];
+    for (const contextKey of contextVariations) {
+      let searchPos = 0;
+      while ((searchPos = fetched.html.indexOf(contextKey, searchPos)) !== -1) {
+        // Found @context key, now check if it contains schema.org
+        const nextSegment = fetched.html.substring(searchPos, Math.min(searchPos + 500, fetched.html.length));
+        if (nextSegment.includes('schema.org')) {
+          console.log(`[SCHEMA] Found @context with schema.org at index ${searchPos}`);
 
-    schemaMarkers.forEach((marker) => {
-      let pos = 0;
-      while ((pos = fetched.html.indexOf(marker, pos)) !== -1) {
-        markerPositions.push({ pos, marker });
-        pos += marker.length;
+          // Search backwards for opening brace
+          let openIndex = searchPos - 1;
+          let depth = 0;
+          while (openIndex >= 0) {
+            if (fetched.html[openIndex] === '}') depth++;
+            else if (fetched.html[openIndex] === '{') {
+              if (depth === 0) break;
+              depth--;
+            }
+            openIndex--;
+          }
+
+          if (openIndex >= 0) {
+            // Search forwards for closing brace
+            let closeIndex = searchPos + contextKey.length;
+            depth = 0;
+            while (closeIndex < fetched.html.length) {
+              if (fetched.html[closeIndex] === '{') depth++;
+              else if (fetched.html[closeIndex] === '}') {
+                if (depth === 0) break;
+                depth--;
+              }
+              closeIndex++;
+            }
+
+            if (closeIndex < fetched.html.length) {
+              const jsonStr = fetched.html.substring(openIndex, closeIndex + 1);
+              const jsonHash = JSON.stringify(jsonStr).substring(0, 50); // Quick fingerprint
+
+              if (!processedSchemas.has(jsonHash)) {
+                try {
+                  const schema = JSON.parse(jsonStr);
+                  if (schema['@context'] && schema['@context'].includes('schema.org')) {
+                    console.log(`[SCHEMA] ✅ Extracted schema (@type: ${JSON.stringify(schema['@type'])})`);
+                    schemas.push(schema);
+                    processedSchemas.add(jsonHash);
+                  }
+                } catch (e) {
+                  // Ignore parse errors in this strategy
+                }
+              }
+            }
+          }
+        }
+        searchPos += contextKey.length;
       }
-    });
+    }
 
-    // Remove duplicates and sort by position
-    const uniquePositions = Array.from(
-      new Map(markerPositions.map((m) => [m.pos, m])).values()
-    ).sort((a, b) => a.pos - b.pos);
+    console.log(`[SCHEMA] Strategy 1 found: ${schemas.length} schemas`);
 
-    console.log(`[SCHEMA] Found ${uniquePositions.length} potential schema.org marker(s)`);
+    // Strategy 2: Extract from <script type="application/ld+json"> tags
+    console.log(`[SCHEMA] Strategy 2: Looking for JSON-LD script tags...`);
+    const scriptTagRegex = /<script[^>]*type=["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script>/gi;
+    let match;
+    while ((match = scriptTagRegex.exec(fetched.html)) !== null) {
+      const jsonStr = match[1].trim();
+      const jsonHash = JSON.stringify(jsonStr).substring(0, 50);
 
-    uniquePositions.forEach((item, idx) => {
-      const foundCount = idx + 1;
-      const searchIndex = item.pos;
+      if (!processedSchemas.has(jsonHash)) {
+        try {
+          const schema = JSON.parse(jsonStr);
+          if (schema['@context'] && String(schema['@context']).includes('schema.org')) {
+            console.log(`[SCHEMA] ✅ From script tag: (@type: ${JSON.stringify(schema['@type'])})`);
+            schemas.push(schema);
+            processedSchemas.add(jsonHash);
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+    }
 
-      console.log(`[SCHEMA] Processing marker #${foundCount} at index ${searchIndex}`);
+    console.log(`[SCHEMA] Strategy 2 found: ${schemas.length - processedSchemas.size + processedSchemas.size} total schemas`);
 
-      // Search backwards for opening brace - allow some flexibility
-      let openIndex = searchIndex - 1;
+    // Strategy 3: Try JSON.parse on segments containing "schema.org"
+    console.log(`[SCHEMA] Strategy 3: Extracting all schema.org objects...`);
+    let pos = 0;
+    while ((pos = fetched.html.indexOf('schema.org', pos)) !== -1) {
+      // Look for nearby opening and closing braces
+      let openIdx = pos - 1;
+      let closeIdx = pos + 10;
       let depth = 0;
-      let foundOpenBrace = false;
 
-      while (openIndex >= 0) {
-        const char = fetched.html[openIndex];
-        if (char === '}') {
-          depth++;
-        } else if (char === '{') {
-          if (depth === 0) {
-            foundOpenBrace = true;
-            break;
-          }
+      // Find opening brace
+      while (openIdx >= Math.max(0, pos - 5000)) {
+        if (fetched.html[openIdx] === '}') depth++;
+        else if (fetched.html[openIdx] === '{') {
+          if (depth === 0) break;
           depth--;
         }
-        openIndex--;
+        openIdx--;
       }
 
-      if (!foundOpenBrace) {
-        console.log(`[SCHEMA] #${foundCount}: ❌ No opening brace found within 50KB`);
-        return;
-      }
-
-      console.log(`[SCHEMA] #${foundCount}: Found opening brace at index ${openIndex}`);
-
-      // Search forwards for closing brace
-      let closeIndex = searchIndex + item.marker.length;
-      depth = 0;
-      let foundCloseBrace = false;
-
-      while (closeIndex < fetched.html.length) {
-        const char = fetched.html[closeIndex];
-        if (char === '{') {
-          depth++;
-        } else if (char === '}') {
-          if (depth === 0) {
-            foundCloseBrace = true;
-            break;
+      if (openIdx >= 0) {
+        depth = 0;
+        // Find closing brace
+        while (closeIdx < Math.min(fetched.html.length, pos + 50000)) {
+          if (fetched.html[closeIdx] === '{') depth++;
+          else if (fetched.html[closeIdx] === '}') {
+            if (depth === 0) break;
+            depth--;
           }
-          depth--;
+          closeIdx++;
         }
-        closeIndex++;
-      }
 
-      if (!foundCloseBrace) {
-        console.log(`[SCHEMA] #${foundCount}: ❌ No closing brace found`);
-        return;
-      }
+        if (closeIdx < fetched.html.length) {
+          const jsonStr = fetched.html.substring(openIdx, closeIdx + 1);
+          const jsonHash = JSON.stringify(jsonStr).substring(0, 50);
 
-      console.log(`[SCHEMA] #${foundCount}: Found closing brace at index ${closeIndex}`);
-
-      // Extract JSON substring
-      const jsonStr = fetched.html.substring(openIndex, closeIndex + 1);
-      console.log(`[SCHEMA] #${foundCount}: JSON size: ${jsonStr.length} bytes`);
-
-      try {
-        const schema = JSON.parse(jsonStr);
-        const schemaType = JSON.stringify(schema['@type']);
-        console.log(`[SCHEMA] #${foundCount}: ✅ EXTRACTED (@type: ${schemaType})`);
-        schemas.push(schema);
-      } catch (e) {
-        const errorMsg = e instanceof Error ? e.message : String(e);
-        console.log(`[SCHEMA] #${foundCount}: ❌ JSON PARSE FAILED - ${errorMsg}`);
-        // Try to extract schema.org URL to understand the format
-        const contextMatch = jsonStr.match(/"?@context"?\s*:\s*"([^"]+)"/);
-        if (contextMatch) {
-          console.log(`[SCHEMA] #${foundCount}: Found context: ${contextMatch[1]}`);
+          if (!processedSchemas.has(jsonHash) && jsonStr.length < 100000) {
+            try {
+              const schema = JSON.parse(jsonStr);
+              if (schema['@context'] || schema['@type']) {
+                console.log(`[SCHEMA] ✅ From segment: (@type: ${JSON.stringify(schema['@type'])})`);
+                schemas.push(schema);
+                processedSchemas.add(jsonHash);
+              }
+            } catch (e) {
+              // Ignore
+            }
+          }
         }
       }
-    });
+      pos += 10;
+    }
 
-    console.log(`[SCHEMA] === FINAL RESULT: Found ${schemas.length} schemas ===`);
+    console.log(`[SCHEMA] === FINAL RESULT: Found ${schemas.length} unique schemas ===`);
 
     if (schemas.length === 0) {
-      // Add more diagnostic info
-      const hasJsonLdScripts = fetched.html.includes('application/ld+json');
-      const hasSchemaOrg = fetched.html.includes('schema.org');
-      console.log(`[SCHEMA] Diagnostics: has JSON-LD scripts=${hasJsonLdScripts}, has schema.org=${hasSchemaOrg}`);
+      // Add diagnostic info
+      const contextCount = (fetched.html.match(/@context/gi) || []).length;
+      const schemaOrgCount = (fetched.html.match(/schema\.org/gi) || []).length;
+      console.log(`[SCHEMA] Diagnostics: @context occurrences=${contextCount}, schema.org mentions=${schemaOrgCount}`);
       warnings.push('No schema.org markup found');
     }
 
