@@ -147,16 +147,31 @@ export async function fetchUrlContent(
     const hasSchemaInScript = /schema\s*=|setSchema|addSchema|initSchema/i.test(html);
     console.log(`[CSR] Schema injection patterns found: ${hasSchemaInScript}`);
 
-    // ===== RECOMMENDATION =====
-    if (schemaOrgCount > 0 && !hasJsonLdRegex) {
-      console.log(`\n[⚠️  IMPORTANT] Schema.org found (${schemaOrgCount}x) but NO JSON-LD script tags!`);
-      console.log(`[RECOMMENDATION] Schemas may be injected CLIENT-SIDE via JavaScript`);
-      console.log(`[RECOMMENDATION] Consider using browser automation (Puppeteer) for full SSR capture`);
-    } else if (hasJsonLdRegex && jsonLdMatches.length > 0) {
-      console.log(`\n[✅ GOOD] Schemas found in SERVER-SIDE rendered HTML`);
-    } else {
-      console.log(`\n[ℹ️  INFO] No schema.org markup detected in server response`);
+    // ===== SAMPLE HEAD CONTENT =====
+    console.log(`\n[HEAD CONTENT SAMPLE]`);
+    if (headMatch) {
+      const headContent = headMatch[1];
+      const headSample = headContent.substring(0, 1500);
+      console.log(`[HEAD] First 1500 chars: ${headSample}`);
     }
+
+    // ===== DIAGNOSIS =====
+    console.log(`\n[DIAGNOSIS & RECOMMENDATION]`);
+    console.log(`[SUMMARY] Schema.org: ${schemaOrgCount} | JSON-LD tags: ${jsonLdMatches.length} | @context: ${contextMatches.length}`);
+
+    if (schemaOrgCount === 0) {
+      console.log(`[❌ RESULT] No schemas in server response`);
+    } else if (schemaOrgCount > 0 && jsonLdMatches.length === 0 && contextMatches.length === 0) {
+      console.log(`[⚠️  RESULT] SCHEMAS ARE CLIENT-SIDE RENDERED`);
+      console.log(`[EVIDENCE] schema.org found but NO JSON-LD script tags`);
+      console.log(`[CAUSE] Next.js renders schemas via JavaScript after hydration`);
+      console.log(`[SOLUTION] Need Puppeteer/Playwright for full JS rendering`);
+    } else if (hasJsonLdRegex && jsonLdMatches.length > 0) {
+      console.log(`[✅ RESULT] Schemas found in server HTML`);
+    }
+
+    console.log(`[RESPONSE] HTML: ${html.length} bytes | Type: ${contentType}`);
+    console.log(`[COMPLETE: SERVER/CLIENT DETECTION]`);
 
     return {
       url,
