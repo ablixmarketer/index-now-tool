@@ -80,7 +80,21 @@ export async function fetchUrlContent(
     // Log HTML fetch details
     console.log(`[DEBUG FETCH] URL: ${url}`);
     console.log(`[DEBUG FETCH] HTML size: ${html.length} bytes`);
-    console.log(`[DEBUG FETCH] Has <script type="application/ld+json">: ${html.includes('type="application/ld+json"')}`);
+
+    // Check for JSON-LD in multiple ways
+    const hasJsonLdExact = html.includes('type="application/ld+json"');
+    const hasJsonLdSingle = html.includes("type='application/ld+json'");
+    const hasJsonLdNoSpace = html.includes('type="application/ld+json"');
+    const hasJsonLdSpaces = html.includes('type = "application/ld+json"');
+    const hasJsonLdRegex = /type\s*=\s*["']?application\/ld\+json["']?/i.test(html);
+    const hasApplicationLdJson = html.includes('application/ld+json');
+
+    console.log(`[DEBUG FETCH] JSON-LD detection:`);
+    console.log(`[DEBUG FETCH]   - type="application/ld+json": ${hasJsonLdExact}`);
+    console.log(`[DEBUG FETCH]   - type='application/ld+json': ${hasJsonLdSingle}`);
+    console.log(`[DEBUG FETCH]   - Any whitespace variations: ${hasJsonLdRegex}`);
+    console.log(`[DEBUG FETCH]   - Just application/ld+json: ${hasApplicationLdJson}`);
+
     console.log(`[DEBUG FETCH] Schema.org mentions: ${(html.match(/schema\.org/g) || []).length}`);
 
     return {
