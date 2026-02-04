@@ -341,15 +341,20 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     console.log(`[SCHEMA] Strategy 2 found: ${strategy2Count} schemas`);
 
     // Strategy 3: Try JSON.parse on segments containing "schema.org"
-    console.log(`[SCHEMA] Strategy 3: Extracting all schema.org objects...`);
+    console.log(`[SCHEMA] Strategy 3: Extracting all schema.org JSON objects...`);
     let pos = 0;
+    let strategy3Count = 0;
+    let strategy3Attempts = 0;
+
     while ((pos = fetched.html.indexOf('schema.org', pos)) !== -1) {
+      strategy3Attempts++;
+
       // Look for nearby opening and closing braces
       let openIdx = pos - 1;
       let closeIdx = pos + 10;
       let depth = 0;
 
-      // Find opening brace
+      // Find opening brace (search backwards up to 5KB)
       while (openIdx >= Math.max(0, pos - 5000)) {
         if (fetched.html[openIdx] === '}') depth++;
         else if (fetched.html[openIdx] === '{') {
@@ -361,7 +366,7 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
 
       if (openIdx >= 0) {
         depth = 0;
-        // Find closing brace
+        // Find closing brace (search forwards up to 50KB)
         while (closeIdx < Math.min(fetched.html.length, pos + 50000)) {
           if (fetched.html[closeIdx] === '{') depth++;
           else if (fetched.html[closeIdx] === '}') {
@@ -375,16 +380,17 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
           const jsonStr = fetched.html.substring(openIdx, closeIdx + 1);
           const jsonHash = JSON.stringify(jsonStr).substring(0, 50);
 
-          if (!processedSchemas.has(jsonHash) && jsonStr.length < 100000) {
+          if (!processedSchemas.has(jsonHash) && jsonStr.length < 200000) {
             try {
               const schema = JSON.parse(jsonStr);
               if (schema['@context'] || schema['@type']) {
-                console.log(`[SCHEMA] ✅ From segment: (@type: ${JSON.stringify(schema['@type'])})`);
+                console.log(`[SCHEMA] ✅ Strategy 3: Found schema (@type: ${JSON.stringify(schema['@type'])})`);
                 schemas.push(schema);
                 processedSchemas.add(jsonHash);
+                strategy3Count++;
               }
             } catch (e) {
-              // Ignore
+              // Ignore parse errors in this strategy
             }
           }
         }
@@ -392,14 +398,24 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
       pos += 10;
     }
 
-    console.log(`[SCHEMA] === FINAL RESULT: Found ${schemas.length} unique schemas ===`);
+    console.log(`[SCHEMA] Strategy 3 processed: ${strategy3Attempts} schema.org mentions, found ${strategy3Count} schemas`);
+    console.log(`[SCHEMA] === FINAL RESULT: Found ${schemas.length} total unique schemas ===`);
 
     if (schemas.length === 0) {
-      // Add diagnostic info
+      // Add comprehensive diagnostic info
       const contextCount = (fetched.html.match(/@context/gi) || []).length;
       const schemaOrgCount = (fetched.html.match(/schema\.org/gi) || []).length;
-      console.log(`[SCHEMA] Diagnostics: @context occurrences=${contextCount}, schema.org mentions=${schemaOrgCount}`);
-      warnings.push('No schema.org markup found');
+      const jsonLdCount = (fetched.html.match(/application\/ld\+json/gi) || []).length;
+
+      console.log(`[SCHEMA] ⚠️  No schemas extracted. Diagnostics:`);
+      console.log(`[SCHEMA]    - @context occurrences: ${contextCount}`);
+      console.log(`[SCHEMA]    - schema.org mentions: ${schemaOrgCount}`);
+      console.log(`[SCHEMA]    - JSON-LD script tags: ${jsonLdCount}`);
+      console.log(`[SCHEMA]    - Possible issue: Schemas may be URL references only, not JSON-LD objects`);
+
+      warnings.push('No schema.org markup found - but found references to schema.org');
+    } else {
+      console.log(`[SCHEMA] ✅ Successfully extracted ${schemas.length} schemas`);
     }
 
     // Validate content quality
