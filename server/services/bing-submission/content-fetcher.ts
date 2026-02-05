@@ -761,12 +761,16 @@ export function convertToBingPayload(
   const urlObj = new URL(extracted.url);
   const siteUrl = urlObj.origin;
 
-  // Clean HTML - remove scripts, styles, event handlers
+  // Clean HTML - remove any remaining scripts, styles, comments, and event handlers
   let cleanContent = extracted.mainContent
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
     .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
-    .replace(/<!--[\s\S]*?-->/g, '');
+    .replace(/<!--[\s\S]*?-->/g, '')
+    // Remove style attributes that might remain
+    .replace(/\s+style\s*=\s*["'][^"']*["']/gi, '')
+    // Remove class attributes if they're too long (inline generated classes)
+    .replace(/\s+class\s*=\s*"[^"]{200,}"/gi, '');
 
   // Build HTTP message (Bing expects base64 encoded HTTP response)
   const httpResponse = `HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\r\n${cleanContent}`;
