@@ -213,37 +213,63 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
     console.log(`[DEBUG DOM] JSON-LD <script> tags found: ${jsonLdScripts.length}`);
 
-    // Extract main content - priority: <main> -> <article> -> <body>
+    // Extract and clean main content - priority: <main> -> <article> -> <body>
     let mainContent = '';
     let sourceTag: 'main' | 'article' | 'body' | 'none' = 'none';
 
-    const mainElement = document.querySelector('main');
-    if (mainElement && mainElement.textContent?.trim()) {
-      mainContent = mainElement.innerHTML;
-      sourceTag = 'main';
-    } else {
-      const articleElement = document.querySelector('article');
-      if (articleElement && articleElement.textContent?.trim()) {
-        mainContent = articleElement.innerHTML;
-        sourceTag = 'article';
+    try {
+      // Use the new clean and format function
+      mainContent = cleanAndFormatHtml(fetched.html, fetched.url);
+
+      if (mainContent && mainContent.length > 100) {
+        sourceTag = 'main';
       } else {
-        const bodyElement = document.querySelector('body');
-        if (bodyElement) {
-          // Remove script, style, nav, footer from body
-          const clone = bodyElement.cloneNode(true) as HTMLElement;
+        // Fallback to old extraction if new method doesn't find content
+        const mainElement = document.querySelector('main');
+        if (mainElement && mainElement.textContent?.trim()) {
+          mainContent = mainElement.innerHTML;
+          sourceTag = 'main';
+        } else {
+          const articleElement = document.querySelector('article');
+          if (articleElement && articleElement.textContent?.trim()) {
+            mainContent = articleElement.innerHTML;
+            sourceTag = 'article';
+          } else {
+            const bodyElement = document.querySelector('body');
+            if (bodyElement) {
+              // Remove script, style, nav, footer from body
+              const clone = bodyElement.cloneNode(true) as HTMLElement;
 
-          // Remove unwanted elements
-          const selectorsToRemove = ['script', 'style', 'nav', 'footer', 'header', '.sidebar', '.ads'];
-          selectorsToRemove.forEach((selector) => {
-            clone.querySelectorAll(selector).forEach((el) => el.remove());
-          });
+              // Remove unwanted elements
+              const selectorsToRemove = ['script', 'style', 'nav', 'footer', 'header', '.sidebar', '.ads'];
+              selectorsToRemove.forEach((selector) => {
+                clone.querySelectorAll(selector).forEach((el) => el.remove());
+              });
 
-          mainContent = clone.innerHTML;
-          sourceTag = 'body';
+              mainContent = clone.innerHTML;
+              sourceTag = 'body';
 
-          if (mainContent.length < 500) {
-            warnings.push('Content extracted from body tag is very short - may include headers/footers only');
+              if (mainContent.length < 500) {
+                warnings.push('Content extracted from body tag is very short - may include headers/footers only');
+              }
+            }
           }
+        }
+      }
+    } catch (e) {
+      const err = e as Error;
+      console.log(`[DEBUG] Failed to use new HTML cleaning, falling back to old method: ${err.message}`);
+
+      // Fallback if new method fails
+      const mainElement = document.querySelector('main');
+      if (mainElement && mainElement.textContent?.trim()) {
+        mainContent = mainElement.innerHTML;
+        sourceTag = 'main';
+      } else {
+        const articleElement = document.querySelector('article');
+        if (articleElement && articleElement.textContent?.trim()) {
+          mainContent = articleElement.innerHTML;
+          sourceTag = 'article';
         }
       }
     }
