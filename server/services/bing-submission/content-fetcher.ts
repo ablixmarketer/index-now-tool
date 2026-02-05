@@ -804,3 +804,265 @@ export function sanitizeForDebug(html: string, maxLength: number = 500): string 
 
   return sanitized;
 }
+
+// Clean and format HTML content properly (based on reference implementation)
+export function cleanAndFormatHtml(html: string, baseUrl: string): string {
+  const parser = new JSDOM(html, {
+    url: baseUrl,
+    pretendToBeVisual: true,
+  });
+
+  const document = parser.window.document;
+
+  // Find main content element
+  let mainElement = document.querySelector('main');
+  if (!mainElement) {
+    mainElement = document.querySelector('article');
+  }
+  if (!mainElement) {
+    mainElement = document.querySelector('[role="main"]');
+  }
+
+  if (!mainElement) {
+    return '';
+  }
+
+  // Only remove: script, style, noscript, iframe, svg, canvas
+  const removeOnly = ['script', 'style', 'noscript', 'iframe', 'svg', 'canvas'];
+  removeOnly.forEach(tag => {
+    mainElement!.querySelectorAll(tag).forEach(el => el.remove());
+  });
+
+  // Allowed tags for content extraction
+  const allowedTags = new Set([
+    // Structure
+    'main', 'header', 'section', 'article', 'aside', 'footer', 'nav', 'div',
+    // Headings
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    // Text
+    'p', 'span', 'a', 'strong', 'em', 'b', 'i', 'u', 's', 'mark', 'small', 'sub', 'sup', 'br', 'hr',
+    // Lists
+    'ul', 'ol', 'li', 'menu', 'dl', 'dt', 'dd',
+    // Tables
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col',
+    // Media
+    'img', 'figure', 'figcaption', 'picture', 'source', 'video', 'audio',
+    // Interactive
+    'button', 'details', 'summary',
+    // Meta & Schema
+    'meta', 'time', 'data', 'address',
+    // Code
+    'code', 'pre', 'kbd', 'var', 'samp',
+    // Quote
+    'blockquote', 'q', 'cite', 'abbr', 'dfn',
+    // Others
+    'ins', 'del', 'wbr', 'ruby', 'rt', 'rp'
+  ]);
+
+  // Allowed attributes for specific tags
+  const allowedAttributes: Record<string, string[]> = {
+    'a': ['href', 'rel', 'title', 'aria-label'],
+    'img': ['src', 'alt', 'title', 'width', 'height'],
+    'time': ['datetime'],
+    'meta': ['itemprop', 'content', 'name'],
+    'data': ['value'],
+    'ol': ['type', 'start'],
+    'li': ['value', 'itemprop', 'itemscope', 'itemtype'],
+    'source': ['src', 'srcset', 'type', 'media'],
+    'video': ['src', 'poster', 'controls', 'width', 'height'],
+    'audio': ['src', 'controls'],
+    'blockquote': ['cite'],
+    'q': ['cite'],
+    'abbr': ['title'],
+    'dfn': ['title'],
+    '_global': ['itemprop', 'itemscope', 'itemtype', 'aria-label', 'aria-current', 'aria-hidden', 'role', 'id']
+  };
+
+  // Process nodes recursively
+  const processNode = (node: Node): string => {
+    // Text node
+    if (node.nodeType === 3) { // Node.TEXT_NODE
+      return node.textContent || '';
+    }
+
+    // Comment node
+    if (node.nodeType === 8) { // Node.COMMENT_NODE
+      return `<!--${(node as Comment).textContent || ''}-->`;
+    }
+
+    // Element node
+    if (node.nodeType === 1) { // Node.ELEMENT_NODE
+      const element = node as Element;
+      const tagName = element.tagName.toLowerCase();
+
+      // Skip removed tags
+      if (removeOnly.includes(tagName)) {
+        return '';
+      }
+
+      // Process children
+      let childContent = '';
+      element.childNodes.forEach(child => {
+        childContent += processNode(child);
+      });
+
+      // If tag is allowed, preserve it
+      if (allowedTags.has(tagName)) {
+        let attrStr = '';
+        const tagAttrs = allowedAttributes[tagName] || [];
+        const globalAttrs = allowedAttributes['_global'] || [];
+        const allAttrs = [...tagAttrs, ...globalAttrs];
+
+        // Special handling for img tags
+        if (tagName === 'img') {
+          let src = element.getAttribute('src') ||
+                    element.getAttribute('data-src') ||
+                    element.getAttribute('data-lazy-src') ||
+                    element.getAttribute('data-original') || '';
+
+          // Convert relative URLs to absolute
+          if (src && !src.startsWith('http') && !src.startsWith('data:')) {
+            try {
+              src = new URL(src, baseUrl).href;
+            } catch (e) {
+              // Keep original if URL construction fails
+            }
+          }
+
+          if (!src) return childContent;
+
+          const alt = element.getAttribute('alt') || '';
+          const title = element.getAttribute('title') || '';
+          const width = element.getAttribute('width') || '';
+          const height = element.getAttribute('height') || '';
+
+          attrStr = ` src="${src}"`;
+          if (alt) attrStr += ` alt="${alt}"`;
+          if (title) attrStr += ` title="${title}"`;
+          if (width) attrStr += ` width="${width}"`;
+          if (height) attrStr += ` height="${height}"`;
+
+          return `<img${attrStr}>`;
+        }
+
+        // Special handling for anchors
+        if (tagName === 'a') {
+          let href = element.getAttribute('href') || '';
+          if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto:') && !href.startsWith('javascript:')) {
+            try {
+              href = new URL(href, baseUrl).href;
+            } catch (e) {
+              // Keep original
+            }
+          }
+          if (href && !href.startsWith('javascript:')) {
+            attrStr += ` href="${href}"`;
+          }
+          const rel = element.getAttribute('rel');
+          if (rel) attrStr += ` rel="${rel}"`;
+          const ariaLabel = element.getAttribute('aria-label');
+          if (ariaLabel) attrStr += ` aria-label="${ariaLabel}"`;
+
+          return `<a${attrStr}>${childContent}</a>`;
+        }
+
+        // For other elements, preserve allowed attributes only
+        allAttrs.forEach(attr => {
+          const value = element.getAttribute(attr);
+          if (value !== null) {
+            attrStr += ` ${attr}="${value}"`;
+          }
+        });
+
+        // Self-closing tags
+        if (['br', 'hr', 'img', 'meta', 'source', 'col', 'wbr'].includes(tagName)) {
+          return `<${tagName}${attrStr}>`;
+        }
+
+        return `<${tagName}${attrStr}>${childContent}</${tagName}>`;
+      }
+
+      // Non-allowed tag - return children only (unwrap)
+      return childContent;
+    }
+
+    return '';
+  };
+
+  // Extract and process content
+  let result = '';
+  mainElement.childNodes.forEach(child => {
+    result += processNode(child);
+  });
+
+  // Format the HTML with proper indentation
+  result = formatExtractedHtml(result);
+
+  return result;
+}
+
+// Format extracted HTML with proper indentation and newlines
+function formatExtractedHtml(html: string): string {
+  const blockTags = ['main', 'header', 'section', 'article', 'aside', 'footer', 'nav', 'div',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'ul', 'ol', 'li', 'table', 'thead', 'tbody',
+    'tfoot', 'tr', 'th', 'td', 'figure', 'figcaption', 'blockquote', 'pre', 'hr', 'br',
+    'details', 'summary', 'menu', 'address', 'form', 'fieldset', 'legend'];
+
+  const indentTags = ['main', 'header', 'section', 'article', 'aside', 'footer', 'nav', 'div',
+    'ul', 'ol', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'figure', 'blockquote', 'details', 'dl', 'dt', 'dd'];
+
+  let result = html;
+
+  // Add newlines before opening block tags
+  blockTags.forEach(tag => {
+    const regex = new RegExp(`(<${tag}[^>]*>)`, 'gi');
+    result = result.replace(regex, '\n$1');
+  });
+
+  // Add newlines after closing block tags
+  blockTags.forEach(tag => {
+    const regex = new RegExp(`(</${tag}>)`, 'gi');
+    result = result.replace(regex, '$1\n');
+  });
+
+  // Clean up multiple newlines
+  result = result.replace(/\n\s*\n/g, '\n').trim();
+
+  // Add indentation
+  const lines = result.split('\n');
+  let indentLevel = 0;
+  const formattedLines: string[] = [];
+
+  lines.forEach(line => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) return;
+
+    // Check if this is a closing tag first
+    let isClosingTag = false;
+    indentTags.forEach(tag => {
+      if (trimmedLine.toLowerCase().startsWith(`</${tag}>`)) {
+        isClosingTag = true;
+      }
+    });
+
+    if (isClosingTag && indentLevel > 0) {
+      indentLevel--;
+    }
+
+    const indent = '  '.repeat(indentLevel);
+    formattedLines.push(indent + trimmedLine);
+
+    // Check if this is an opening tag (increase indent for next line)
+    if (!isClosingTag) {
+      indentTags.forEach(tag => {
+        const openRegex = new RegExp(`<${tag}[^>]*>`, 'i');
+        const closeRegex = new RegExp(`</${tag}>`, 'i');
+        if (openRegex.test(trimmedLine) && !closeRegex.test(trimmedLine)) {
+          indentLevel++;
+        }
+      });
+    }
+  });
+
+  return formattedLines.join('\n');
+}
