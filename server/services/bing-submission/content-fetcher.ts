@@ -850,11 +850,8 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
 
   const document = parser.window.document;
 
-  // Find main content element
+  // Find main content element - ALWAYS use <main> if it exists
   let mainElement = document.querySelector('main');
-  if (!mainElement) {
-    mainElement = document.querySelector('article');
-  }
   if (!mainElement) {
     mainElement = document.querySelector('[role="main"]');
   }
@@ -862,6 +859,11 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
   if (!mainElement) {
     return '';
   }
+
+  // Log what we found
+  const articleCount = mainElement.querySelectorAll('article').length;
+  const sectionCount = mainElement.querySelectorAll('section').length;
+  console.log(`[CONTENT EXTRACTION] Found <main> with ${articleCount} articles and ${sectionCount} sections`);
 
   // Remove problematic tags completely
   const removeOnly = ['script', 'style', 'noscript', 'iframe', 'svg', 'canvas', 'meta', 'link'];
@@ -1049,11 +1051,18 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
     return '';
   };
 
-  // Extract and process content
+  // Extract and process content - process ALL children including all articles
   let result = '';
+  let nodeCount = 0;
   mainElement.childNodes.forEach(child => {
-    result += processNode(child);
+    const nodeContent = processNode(child);
+    if (nodeContent.trim()) {
+      result += nodeContent;
+      nodeCount++;
+    }
   });
+
+  console.log(`[CONTENT EXTRACTION] Processed ${nodeCount} child nodes, total content length: ${result.length}`);
 
   // Clean up excessive whitespace between tags
   result = result
@@ -1061,8 +1070,12 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
     .replace(/\s+/g, ' ') // Normalize multiple spaces
     .trim();
 
+  console.log(`[CONTENT EXTRACTION] After whitespace cleanup: ${result.length} chars`);
+
   // Format with indentation
   result = formatExtractedHtml(result);
+
+  console.log(`[CONTENT EXTRACTION] After formatting: ${result.length} chars`);
 
   return result;
 }
