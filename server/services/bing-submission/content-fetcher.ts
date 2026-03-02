@@ -841,7 +841,7 @@ export function sanitizeForDebug(html: string, maxLength: number = 500): string 
   return sanitized;
 }
 
-// Clean and format HTML content properly (remove unnecessary attributes while keeping structure)
+// Clean and format HTML content properly (remove wrapper divs and styling completely)
 export function cleanAndFormatHtml(html: string, baseUrl: string): string {
   const parser = new JSDOM(html, {
     url: baseUrl,
@@ -863,64 +863,68 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
     return '';
   }
 
-  // Only remove: script, style, noscript, iframe, svg, canvas
-  const removeOnly = ['script', 'style', 'noscript', 'iframe', 'svg', 'canvas'];
+  // Remove problematic tags completely
+  const removeOnly = ['script', 'style', 'noscript', 'iframe', 'svg', 'canvas', 'meta', 'link'];
   removeOnly.forEach(tag => {
     mainElement!.querySelectorAll(tag).forEach(el => el.remove());
   });
 
-  // Semantic content tags to keep
-  const allowedTags = new Set([
-    // Structure
-    'main', 'header', 'section', 'article', 'aside', 'footer', 'nav', 'div',
+  // Semantic content tags - NO divs for layout/styling
+  const semanticTags = new Set([
+    // Semantic structure only
+    'main', 'header', 'section', 'article', 'aside', 'footer', 'nav',
     // Headings
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    // Text
-    'p', 'span', 'a', 'strong', 'em', 'b', 'i', 'u', 's', 'mark', 'small', 'sub', 'sup', 'br', 'hr',
+    // Text content
+    'p', 'a', 'strong', 'em', 'b', 'i', 'u', 's', 'mark', 'small', 'sub', 'sup', 'br', 'hr',
     // Lists
-    'ul', 'ol', 'li', 'menu', 'dl', 'dt', 'dd',
+    'ul', 'ol', 'li', 'dl', 'dt', 'dd',
     // Tables
     'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col',
     // Media
     'img', 'figure', 'figcaption', 'picture', 'source', 'video', 'audio',
-    // Interactive
-    'button', 'details', 'summary',
-    // Meta & Schema
-    'meta', 'time', 'data', 'address',
     // Code
     'code', 'pre', 'kbd', 'var', 'samp',
     // Quote
     'blockquote', 'q', 'cite', 'abbr', 'dfn',
     // Others
-    'ins', 'del', 'wbr', 'ruby', 'rt', 'rp'
+    'details', 'summary', 'time', 'address'
   ]);
 
-  // Allowed attributes per tag
+  // Only these attributes are allowed (NO styling attributes at all)
   const allowedAttributes: Record<string, string[]> = {
-    'a': ['href', 'rel', 'title', 'aria-label'],
-    'img': ['src', 'alt', 'title', 'width', 'height', 'loading'],
+    'a': ['href', 'rel', 'title'],
+    'img': ['src', 'alt', 'title', 'width', 'height'],
     'time': ['datetime'],
-    'meta': ['itemprop', 'content', 'name'],
-    'data': ['value'],
     'ol': ['type', 'start'],
-    'li': ['value'],
     'source': ['src', 'srcset', 'type', 'media'],
     'video': ['src', 'poster', 'controls', 'width', 'height'],
     'audio': ['src', 'controls'],
-    'button': ['type'],
     'blockquote': ['cite'],
     'q': ['cite'],
     'abbr': ['title'],
     'dfn': ['title'],
-    'code': ['data-language'],
-    'pre': [],
     'figure': ['id'],
     'section': ['id'],
     'article': ['id'],
     'header': ['id'],
     'nav': ['id'],
-    // Global attributes for all
-    '_global': ['id', 'class', 'aria-label', 'aria-current', 'aria-hidden', 'role']
+    '_global': ['id', 'aria-label', 'role']
+  };
+
+  // Check if div is a wrapper div (only contains styling, no semantic content)
+  const isWrapperDiv = (element: Element): boolean => {
+    const classes = element.className || '';
+    // Common wrapper patterns
+    const wrapperPatterns = [
+      'container', 'flex', 'grid', 'gap', 'p-', 'px-', 'py-', 'm-', 'mx-', 'my-',
+      'w-', 'h-', 'max-', 'min-', 'bg-', 'text-', 'font-', 'rounded', 'border',
+      'shadow', 'overflow', 'absolute', 'relative', 'float', 'inline', 'block',
+      'transform', 'scale', 'translate', 'rotate', 'opacity', 'hover:', 'focus:',
+      'hidden', 'visible', 'fixed', 'sticky', 'z-', 'top-', 'left-', 'right-', 'bottom-'
+    ];
+
+    return wrapperPatterns.some(pattern => classes.includes(pattern));
   };
 
   // Process nodes recursively
@@ -951,8 +955,13 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
         childContent += processNode(child);
       });
 
-      // If tag is allowed, preserve it with minimal attributes
-      if (allowedTags.has(tagName)) {
+      // If it's a wrapper div (styling div), just return children unwrapped
+      if (tagName === 'div' && isWrapperDiv(element)) {
+        return childContent;
+      }
+
+      // If tag is semantic, preserve it with clean attributes
+      if (semanticTags.has(tagName)) {
         let attrStr = '';
 
         // Special handling for img
@@ -1003,7 +1012,7 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
           return `<a${attrStr}>${childContent}</a>`;
         }
 
-        // For other tags, add allowed attributes only
+        // For other semantic tags, add only allowed attributes
         const tagAttrs = allowedAttributes[tagName] || [];
         const globalAttrs = allowedAttributes['_global'] || [];
         const allAllowedAttrs = [...new Set([...tagAttrs, ...globalAttrs])];
@@ -1011,25 +1020,29 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
         allAllowedAttrs.forEach(attr => {
           const value = element.getAttribute(attr);
           if (value !== null) {
-            // For class attribute, keep but don't include massive generated classes
-            if (attr === 'class') {
-              const classes = value.split(' ').filter(c => c.length < 30 && !c.startsWith('-')).slice(0, 5).join(' ');
-              if (classes) attrStr += ` class="${classes}"`;
-            } else {
-              attrStr += ` ${attr}="${value}"`;
-            }
+            attrStr += ` ${attr}="${value}"`;
           }
         });
 
         // Self-closing tags
-        if (['br', 'hr', 'img', 'meta', 'source', 'col', 'wbr'].includes(tagName)) {
+        if (['br', 'hr', 'img', 'source', 'col'].includes(tagName)) {
           return `<${tagName}${attrStr}>`;
+        }
+
+        // Only return tag if it has content
+        if (!childContent.trim() && !['section', 'article', 'header', 'footer', 'nav'].includes(tagName)) {
+          return '';
         }
 
         return `<${tagName}${attrStr}>${childContent}</${tagName}>`;
       }
 
-      // Non-allowed tag - return children only (unwrap)
+      // Non-semantic tag (span, div without semantic meaning) - return children only
+      if (tagName === 'div' || tagName === 'span') {
+        return childContent;
+      }
+
+      // Other non-allowed tags - return children
       return childContent;
     }
 
@@ -1042,7 +1055,13 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
     result += processNode(child);
   });
 
-  // Format the HTML with proper indentation
+  // Clean up excessive whitespace between tags
+  result = result
+    .replace(/>\s+</g, '><') // Remove spaces between tags
+    .replace(/\s+/g, ' ') // Normalize multiple spaces
+    .trim();
+
+  // Format with indentation
   result = formatExtractedHtml(result);
 
   return result;
