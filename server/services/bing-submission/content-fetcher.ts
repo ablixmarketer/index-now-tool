@@ -218,13 +218,16 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     let sourceTag: 'main' | 'article' | 'body' | 'none' = 'none';
 
     try {
-      // Use the new clean and format function
-      mainContent = cleanAndFormatHtml(fetched.html, fetched.url);
+      // Use the new clean and format function - always prefer this method
+      const cleanedContent = cleanAndFormatHtml(fetched.html, fetched.url);
 
-      if (mainContent && mainContent.length > 100) {
+      if (cleanedContent && cleanedContent.length > 100) {
+        mainContent = cleanedContent;
         sourceTag = 'main';
+        console.log(`[DEBUG] Successfully extracted and cleaned content (${cleanedContent.length} chars)`);
       } else {
-        // Fallback to old extraction if new method doesn't find content
+        console.log(`[DEBUG] Cleaned content too short (${cleanedContent?.length || 0} chars), using standard extraction`);
+        // Fallback to standard extraction if cleaning removes too much
         const mainElement = document.querySelector('main');
         if (mainElement && mainElement.textContent?.trim()) {
           mainContent = mainElement.innerHTML;
@@ -258,7 +261,7 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
       }
     } catch (e) {
       const err = e as Error;
-      console.log(`[DEBUG] Failed to use new HTML cleaning, falling back to old method: ${err.message}`);
+      console.log(`[DEBUG] Error in HTML cleaning: ${err.message}, using standard extraction`);
 
       // Fallback if new method fails
       const mainElement = document.querySelector('main');
@@ -743,12 +746,15 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
       warnings.push(`ℹ️ Text content is relatively short (${wordCount} words)`);
     }
 
-    // Check for duplicate/minimal content - but don't warn if this is expected
-    if (mainContent.includes('<script') || mainContent.includes('<style')) {
-      // This is normal for extracted content - it's just a notice
-      if (mainContent.match(/<script/gi)?.length ?? 0 > 5) {
-        warnings.push('ℹ️ Content contains many script tags (HTML not fully cleaned)');
-      }
+    // Check for any remaining problematic tags that should have been removed
+    const scriptCount = (mainContent.match(/<script/gi) || []).length;
+    const styleCount = (mainContent.match(/<style/gi) || []).length;
+
+    if (scriptCount > 0) {
+      warnings.push(`⚠️ Content contains ${scriptCount} script tag(s) - these should have been removed`);
+    }
+    if (styleCount > 0) {
+      warnings.push(`⚠️ Content contains ${styleCount} style tag(s) - these should have been removed`);
     }
 
     return {
@@ -835,7 +841,7 @@ export function sanitizeForDebug(html: string, maxLength: number = 500): string 
   return sanitized;
 }
 
-// Clean and format HTML content properly (based on reference implementation)
+// Clean and format HTML content properly (remove unnecessary attributes while keeping structure)
 export function cleanAndFormatHtml(html: string, baseUrl: string): string {
   const parser = new JSDOM(html, {
     url: baseUrl,
@@ -863,7 +869,7 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
     mainElement!.querySelectorAll(tag).forEach(el => el.remove());
   });
 
-  // Allowed tags for content extraction
+  // Semantic content tags to keep
   const allowedTags = new Set([
     // Structure
     'main', 'header', 'section', 'article', 'aside', 'footer', 'nav', 'div',
@@ -889,23 +895,32 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
     'ins', 'del', 'wbr', 'ruby', 'rt', 'rp'
   ]);
 
-  // Allowed attributes for specific tags
+  // Allowed attributes per tag
   const allowedAttributes: Record<string, string[]> = {
     'a': ['href', 'rel', 'title', 'aria-label'],
-    'img': ['src', 'alt', 'title', 'width', 'height'],
+    'img': ['src', 'alt', 'title', 'width', 'height', 'loading'],
     'time': ['datetime'],
     'meta': ['itemprop', 'content', 'name'],
     'data': ['value'],
     'ol': ['type', 'start'],
-    'li': ['value', 'itemprop', 'itemscope', 'itemtype'],
+    'li': ['value'],
     'source': ['src', 'srcset', 'type', 'media'],
     'video': ['src', 'poster', 'controls', 'width', 'height'],
     'audio': ['src', 'controls'],
+    'button': ['type'],
     'blockquote': ['cite'],
     'q': ['cite'],
     'abbr': ['title'],
     'dfn': ['title'],
-    '_global': ['itemprop', 'itemscope', 'itemtype', 'aria-label', 'aria-current', 'aria-hidden', 'role', 'id']
+    'code': ['data-language'],
+    'pre': [],
+    'figure': ['id'],
+    'section': ['id'],
+    'article': ['id'],
+    'header': ['id'],
+    'nav': ['id'],
+    // Global attributes for all
+    '_global': ['id', 'class', 'aria-label', 'aria-current', 'aria-hidden', 'role']
   };
 
   // Process nodes recursively
@@ -915,9 +930,9 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
       return node.textContent || '';
     }
 
-    // Comment node
+    // Comment node - skip
     if (node.nodeType === 8) { // Node.COMMENT_NODE
-      return `<!--${(node as Comment).textContent || ''}-->`;
+      return '';
     }
 
     // Element node
@@ -936,41 +951,33 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
         childContent += processNode(child);
       });
 
-      // If tag is allowed, preserve it
+      // If tag is allowed, preserve it with minimal attributes
       if (allowedTags.has(tagName)) {
         let attrStr = '';
-        const tagAttrs = allowedAttributes[tagName] || [];
-        const globalAttrs = allowedAttributes['_global'] || [];
-        const allAttrs = [...tagAttrs, ...globalAttrs];
 
-        // Special handling for img tags
+        // Special handling for img
         if (tagName === 'img') {
           let src = element.getAttribute('src') ||
                     element.getAttribute('data-src') ||
                     element.getAttribute('data-lazy-src') ||
                     element.getAttribute('data-original') || '';
 
-          // Convert relative URLs to absolute
           if (src && !src.startsWith('http') && !src.startsWith('data:')) {
             try {
               src = new URL(src, baseUrl).href;
             } catch (e) {
-              // Keep original if URL construction fails
+              // Keep original
             }
           }
 
-          if (!src) return childContent;
+          if (!src) return '';
 
           const alt = element.getAttribute('alt') || '';
           const title = element.getAttribute('title') || '';
-          const width = element.getAttribute('width') || '';
-          const height = element.getAttribute('height') || '';
 
           attrStr = ` src="${src}"`;
           if (alt) attrStr += ` alt="${alt}"`;
           if (title) attrStr += ` title="${title}"`;
-          if (width) attrStr += ` width="${width}"`;
-          if (height) attrStr += ` height="${height}"`;
 
           return `<img${attrStr}>`;
         }
@@ -985,22 +992,32 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
               // Keep original
             }
           }
+
           if (href && !href.startsWith('javascript:')) {
             attrStr += ` href="${href}"`;
           }
+
           const rel = element.getAttribute('rel');
           if (rel) attrStr += ` rel="${rel}"`;
-          const ariaLabel = element.getAttribute('aria-label');
-          if (ariaLabel) attrStr += ` aria-label="${ariaLabel}"`;
 
           return `<a${attrStr}>${childContent}</a>`;
         }
 
-        // For other elements, preserve allowed attributes only
-        allAttrs.forEach(attr => {
+        // For other tags, add allowed attributes only
+        const tagAttrs = allowedAttributes[tagName] || [];
+        const globalAttrs = allowedAttributes['_global'] || [];
+        const allAllowedAttrs = [...new Set([...tagAttrs, ...globalAttrs])];
+
+        allAllowedAttrs.forEach(attr => {
           const value = element.getAttribute(attr);
           if (value !== null) {
-            attrStr += ` ${attr}="${value}"`;
+            // For class attribute, keep but don't include massive generated classes
+            if (attr === 'class') {
+              const classes = value.split(' ').filter(c => c.length < 30 && !c.startsWith('-')).slice(0, 5).join(' ');
+              if (classes) attrStr += ` class="${classes}"`;
+            } else {
+              attrStr += ` ${attr}="${value}"`;
+            }
           }
         });
 
