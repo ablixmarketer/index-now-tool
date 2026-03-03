@@ -962,6 +962,23 @@ export function cleanAndFormatHtml(html: string, baseUrl: string): string {
         return childContent;
       }
 
+      // Special: If it's an article tag, ALWAYS preserve it with all content
+      if (tagName === 'article') {
+        let attrStr = '';
+        const tagAttrs = allowedAttributes[tagName] || [];
+        const globalAttrs = allowedAttributes['_global'] || [];
+        const allAllowedAttrs = [...new Set([...tagAttrs, ...globalAttrs])];
+
+        allAllowedAttrs.forEach(attr => {
+          const value = element.getAttribute(attr);
+          if (value !== null) {
+            attrStr += ` ${attr}="${value}"`;
+          }
+        });
+
+        return `<article${attrStr}>${childContent}</article>`;
+      }
+
       // If tag is semantic, preserve it with clean attributes
       if (semanticTags.has(tagName)) {
         let attrStr = '';
