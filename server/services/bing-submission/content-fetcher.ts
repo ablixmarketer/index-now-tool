@@ -193,7 +193,7 @@ export async function fetchUrlContent(
   }
 }
 
-// Extract content from HTML
+// Extract content from HTML using EXACT reference tool logic
 export function extractPageContent(fetched: FetchedContent): ExtractedPageContent {
   const warnings: string[] = [];
 
@@ -202,32 +202,25 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     const dom = new JSDOM(fetched.html, {
       url: fetched.url,
       pretendToBeVisual: true,
-      // Don't load external resources - just parse the HTML as-is
     });
 
     const document = dom.window.document;
 
-    // Debug: Check if we can find any scripts
-    const allScripts = document.querySelectorAll('script');
-    console.log(`[DEBUG DOM] Total <script> tags found: ${allScripts.length}`);
-    const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
-    console.log(`[DEBUG DOM] JSON-LD <script> tags found: ${jsonLdScripts.length}`);
-
-    // Extract and clean main content - priority: <main> -> <article> -> <body>
+    // Extract main content using EXACT reference tool logic
     let mainContent = '';
     let sourceTag: 'main' | 'article' | 'body' | 'none' = 'none';
 
     try {
-      // Use the new clean and format function - always prefer this method
-      const cleanedContent = cleanAndFormatHtml(fetched.html, fetched.url);
+      // Use exact reference tool logic
+      const cleanedContent = extractMainTagContent(fetched.html, fetched.url);
 
       if (cleanedContent && cleanedContent.length > 100) {
         mainContent = cleanedContent;
         sourceTag = 'main';
-        console.log(`[DEBUG] Successfully extracted and cleaned content (${cleanedContent.length} chars)`);
+        console.log(`[DEBUG] Successfully extracted content (${cleanedContent.length} chars)`);
       } else {
-        console.log(`[DEBUG] Cleaned content too short (${cleanedContent?.length || 0} chars), using standard extraction`);
-        // Fallback to standard extraction if cleaning removes too much
+        console.log(`[DEBUG] Cleaned content too short, using fallback`);
+        // Fallback
         const mainElement = document.querySelector('main');
         if (mainElement && mainElement.textContent?.trim()) {
           mainContent = mainElement.innerHTML;
@@ -237,43 +230,17 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
           if (articleElement && articleElement.textContent?.trim()) {
             mainContent = articleElement.innerHTML;
             sourceTag = 'article';
-          } else {
-            const bodyElement = document.querySelector('body');
-            if (bodyElement) {
-              // Remove script, style, nav, footer from body
-              const clone = bodyElement.cloneNode(true) as HTMLElement;
-
-              // Remove unwanted elements
-              const selectorsToRemove = ['script', 'style', 'nav', 'footer', 'header', '.sidebar', '.ads'];
-              selectorsToRemove.forEach((selector) => {
-                clone.querySelectorAll(selector).forEach((el) => el.remove());
-              });
-
-              mainContent = clone.innerHTML;
-              sourceTag = 'body';
-
-              if (mainContent.length < 500) {
-                warnings.push('Content extracted from body tag is very short - may include headers/footers only');
-              }
-            }
           }
         }
       }
     } catch (e) {
       const err = e as Error;
-      console.log(`[DEBUG] Error in HTML cleaning: ${err.message}, using standard extraction`);
-
-      // Fallback if new method fails
+      console.log(`[DEBUG] Error in extraction: ${err.message}`);
+      
       const mainElement = document.querySelector('main');
       if (mainElement && mainElement.textContent?.trim()) {
         mainContent = mainElement.innerHTML;
         sourceTag = 'main';
-      } else {
-        const articleElement = document.querySelector('article');
-        if (articleElement && articleElement.textContent?.trim()) {
-          mainContent = articleElement.innerHTML;
-          sourceTag = 'article';
-        }
       }
     }
 
@@ -299,7 +266,6 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     const robots =
       document.querySelector('meta[name="robots"]')?.getAttribute('content') || '';
 
-    // Extract dates
     const publishDate =
       document
         .querySelector('meta[property="article:published_time"]')
@@ -319,66 +285,10 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
 
     // Extract schema markup using multiple detection strategies
     const schemas: Record<string, unknown>[] = [];
-    const processedSchemas = new Set<string>(); // Track unique schemas to avoid duplicates
+    const processedSchemas = new Set<string>();
 
     console.log(`[SCHEMA] === COMPREHENSIVE SCHEMA EXTRACTION ===`);
     console.log(`[SCHEMA] HTML length: ${fetched.html.length} bytes`);
-
-    // First, let's diagnose where schema.org mentions are and what's around them
-    console.log(`[SCHEMA DEBUG] Analyzing schema.org occurrences...`);
-    let schemaOrgPos = 0;
-    const schemaOrgMatches: Array<{ pos: number; context: string; type: string }> = [];
-    while ((schemaOrgPos = fetched.html.indexOf('schema.org', schemaOrgPos)) !== -1) {
-      const start = Math.max(0, schemaOrgPos - 200);
-      const end = Math.min(fetched.html.length, schemaOrgPos + 250);
-      const context = fetched.html.substring(start, end);
-
-      // Determine what type of schema.org mention this is
-      let type = 'unknown';
-      if (context.includes('"@context"')) type = '@context';
-      else if (context.includes('@context')) type = '@context (unquoted)';
-      else if (context.includes('application/ld+json')) type = 'JSON-LD script';
-      else if (context.includes('schema#') || context.includes('http://schema.org')) type = 'URL reference';
-      else if (context.includes('{') && context.includes('}')) type = 'JSON object';
-
-      schemaOrgMatches.push({ pos: schemaOrgPos, context, type });
-      schemaOrgPos += 10;
-    }
-
-    console.log(`[SCHEMA DEBUG] Found ${schemaOrgMatches.length} schema.org mentions`);
-
-    // Group by type
-    const byType = schemaOrgMatches.reduce((acc, match) => {
-      acc[match.type] = (acc[match.type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    console.log(`[SCHEMA DEBUG] Breakdown:`, byType);
-
-    // Show first few matches of each type
-    schemaOrgMatches.slice(0, 5).forEach((match, idx) => {
-      const preview = match.context.length > 100 ? match.context.substring(0, 100) + '...' : match.context;
-      console.log(`[SCHEMA DEBUG] #${idx + 1} (${match.type}): ${preview}`);
-    });
-
-    // Pre-extraction: Check HEAD section specifically (common for Next.js)
-    console.log(`[SCHEMA] Pre-check: Looking for schemas in HEAD section...`);
-    const headMatch = fetched.html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
-    let headContent = '';
-    if (headMatch) {
-      headContent = headMatch[1];
-      const schemaCount = (headContent.match(/schema\.org/gi) || []).length;
-      const jsonLdCount = (headContent.match(/application\/ld\+json/gi) || []).length;
-      const jsonLdRegexMatches = headContent.match(/<script[^>]*application\/ld\+json[^>]*>/gi) || [];
-      console.log(`[SCHEMA] HEAD section: schema.org=${schemaCount}, JSON-LD strings=${jsonLdCount}, JSON-LD script tags=${jsonLdRegexMatches.length}`);
-
-      if (jsonLdRegexMatches.length > 0) {
-        console.log(`[SCHEMA] Found ${jsonLdRegexMatches.length} JSON-LD script tags in HEAD:`);
-        jsonLdRegexMatches.slice(0, 3).forEach((tag, idx) => {
-          console.log(`[SCHEMA]   #${idx + 1}: ${tag.substring(0, 80)}...`);
-        });
-      }
-    }
 
     // Strategy 1: Aggressive @context with schema.org brace-matching
     console.log(`[SCHEMA] Strategy 1: AGGRESSIVE - Searching for @context with schema.org...`);
@@ -386,11 +296,9 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     let strategy1Count = 0;
     let strategy1Attempts = 0;
 
-    // Find all @context occurrences (with or without quotes)
     const contextRegex = /"?@context"?\s*:\s*["']https?:\/\/schema\.org[^"']*["']/gi;
     let contextMatch;
 
-    // Get all positions of context matches
     const contextMatches: { pos: number; match: string }[] = [];
     while ((contextMatch = contextRegex.exec(fetched.html)) !== null) {
       contextMatches.push({
@@ -406,10 +314,9 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
       const searchIndex = contextItem.pos;
       console.log(`[SCHEMA] Strategy 1 #${strategy1Attempts}: Processing @context at index ${searchIndex}`);
 
-      // Search backwards for opening brace - be aggressive
       let openIndex = searchIndex - 1;
       let depth = 0;
-      let maxSearchBack = Math.max(0, searchIndex - 50000); // Search up to 50KB backwards
+      let maxSearchBack = Math.max(0, searchIndex - 50000);
 
       while (openIndex >= maxSearchBack) {
         const char = fetched.html[openIndex];
@@ -431,10 +338,9 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
 
       console.log(`[SCHEMA] Strategy 1 #${strategy1Attempts}: Found opening brace at index ${openIndex}`);
 
-      // Search forwards for closing brace
       let closeIndex = searchIndex + contextItem.match.length;
       depth = 0;
-      let maxSearchForward = Math.min(fetched.html.length, searchIndex + 100000); // Search up to 100KB forwards
+      let maxSearchForward = Math.min(fetched.html.length, searchIndex + 100000);
 
       while (closeIndex < maxSearchForward) {
         const char = fetched.html[closeIndex];
@@ -456,7 +362,6 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
 
       console.log(`[SCHEMA] Strategy 1 #${strategy1Attempts}: Found closing brace at index ${closeIndex}`);
 
-      // Extract and parse JSON
       const jsonStr = fetched.html.substring(openIndex, closeIndex + 1);
       console.log(`[SCHEMA] Strategy 1 #${strategy1Attempts}: Extracted JSON size: ${jsonStr.length} bytes`);
 
@@ -483,7 +388,6 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     // Strategy 2: Extract from <script type="application/ld+json"> tags
     console.log(`[SCHEMA] Strategy 2: Looking for JSON-LD script tags...`);
 
-    // Try multiple regex patterns to handle variations
     const scriptTagPatterns = [
       /<script[^>]*type=["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script>/gi,
       /<script[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script>/gi,
@@ -501,7 +405,6 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
         if (!processedSchemas.has(jsonHash)) {
           try {
             const schema = JSON.parse(jsonStr);
-            // Accept schemas even without @context - just check for @type
             if (schema['@type'] || schema['@context']) {
               console.log(`[SCHEMA] ✅ Strategy 2: From script tag: (@type: ${JSON.stringify(schema['@type'])})`);
               schemas.push(schema);
@@ -518,137 +421,6 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
 
     console.log(`[SCHEMA] Strategy 2 found: ${strategy2Count} schemas`);
 
-    // Strategy 2.5: Extract from HEAD section directly (for Next.js)
-    if (headContent && strategy2Count === 0) {
-      console.log(`[SCHEMA] Strategy 2.5: Extracting schemas from HEAD section...`);
-      const headScriptRegex = /<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi;
-      let headMatch;
-      let strategy25Count = 0;
-
-      while ((headMatch = headScriptRegex.exec(headContent)) !== null) {
-        const jsonStr = headMatch[1].trim();
-        const jsonHash = JSON.stringify(jsonStr).substring(0, 50);
-
-        if (!processedSchemas.has(jsonHash)) {
-          try {
-            const schema = JSON.parse(jsonStr);
-            if (schema['@type'] || schema['@context']) {
-              console.log(`[SCHEMA] ✅ Strategy 2.5: From HEAD: (@type: ${JSON.stringify(schema['@type'])})`);
-              schemas.push(schema);
-              processedSchemas.add(jsonHash);
-              strategy25Count++;
-            }
-          } catch (e) {
-            const err = e as Error;
-            console.log(`[SCHEMA] Strategy 2.5: Parse error - ${err.message}`);
-          }
-        }
-      }
-
-      console.log(`[SCHEMA] Strategy 2.5 found: ${strategy25Count} schemas`);
-    }
-
-    // Strategy 3: Try JSON.parse on segments containing "schema.org"
-    console.log(`[SCHEMA] Strategy 3: Extracting all schema.org JSON objects...`);
-    let pos = 0;
-    let strategy3Count = 0;
-    let strategy3Attempts = 0;
-
-    while ((pos = fetched.html.indexOf('schema.org', pos)) !== -1) {
-      strategy3Attempts++;
-
-      // Look for nearby opening and closing braces
-      let openIdx = pos - 1;
-      let closeIdx = pos + 10;
-      let depth = 0;
-
-      // Find opening brace (search backwards up to 5KB)
-      while (openIdx >= Math.max(0, pos - 5000)) {
-        if (fetched.html[openIdx] === '}') depth++;
-        else if (fetched.html[openIdx] === '{') {
-          if (depth === 0) break;
-          depth--;
-        }
-        openIdx--;
-      }
-
-      if (openIdx >= 0) {
-        depth = 0;
-        // Find closing brace (search forwards up to 50KB)
-        while (closeIdx < Math.min(fetched.html.length, pos + 50000)) {
-          if (fetched.html[closeIdx] === '{') depth++;
-          else if (fetched.html[closeIdx] === '}') {
-            if (depth === 0) break;
-            depth--;
-          }
-          closeIdx++;
-        }
-
-        if (closeIdx < fetched.html.length) {
-          const jsonStr = fetched.html.substring(openIdx, closeIdx + 1);
-          const jsonHash = JSON.stringify(jsonStr).substring(0, 50);
-
-          if (!processedSchemas.has(jsonHash) && jsonStr.length < 200000) {
-            try {
-              const schema = JSON.parse(jsonStr);
-              if (schema['@context'] || schema['@type']) {
-                console.log(`[SCHEMA] ✅ Strategy 3: Found schema (@type: ${JSON.stringify(schema['@type'])})`);
-                schemas.push(schema);
-                processedSchemas.add(jsonHash);
-                strategy3Count++;
-              }
-            } catch (e) {
-              // Ignore parse errors in this strategy
-            }
-          }
-        }
-      }
-      pos += 10;
-    }
-
-    console.log(`[SCHEMA] Strategy 3 processed: ${strategy3Attempts} schema.org mentions, found ${strategy3Count} schemas`);
-
-    // Strategy 4: Look for ALL script tags that might contain JSON (regardless of schema.org mention)
-    console.log(`[SCHEMA] Strategy 4: Scanning all script tags for potential schema markup...`);
-    let strategy4Count = 0;
-
-    // Find all script tags
-    const allScriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
-    let scriptMatch;
-    while ((scriptMatch = allScriptRegex.exec(fetched.html)) !== null) {
-      const content = scriptMatch[1].trim();
-      const jsonHash = JSON.stringify(content).substring(0, 50);
-
-      // Try to parse any script content that starts with { or [
-      if ((content.startsWith('{') || content.startsWith('[')) && !processedSchemas.has(jsonHash)) {
-        try {
-          const parsed = JSON.parse(content);
-
-          // Check if it's a schema object
-          if (Array.isArray(parsed)) {
-            // Array of schemas
-            for (const item of parsed) {
-              if (item['@type'] || item['@context']) {
-                schemas.push(item);
-                processedSchemas.add(jsonHash);
-                strategy4Count++;
-              }
-            }
-          } else if (parsed['@type'] || parsed['@context']) {
-            // Single schema
-            schemas.push(parsed);
-            processedSchemas.add(jsonHash);
-            strategy4Count++;
-            console.log(`[SCHEMA] ✅ Strategy 4: Found schema (@type: ${JSON.stringify(parsed['@type'])})`);
-          }
-        } catch (e) {
-          // Not JSON, skip
-        }
-      }
-    }
-
-    console.log(`[SCHEMA] Strategy 4 found: ${strategy4Count} schemas`);
-
     // Strategy 5: Extract from Next.js Hydration Format
     console.log(`[SCHEMA] Strategy 5: Checking for Next.js hydration format...`);
     const hasNextJsHydration = /self\.__next_s|__next_s=/.test(fetched.html);
@@ -658,7 +430,6 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
       console.log(`[SCHEMA] Attempting to extract from Next.js hydration format...`);
       let strategy5Count = 0;
 
-      // Pattern: [0,{"type":"application/ld+json","children":"JSON_STRING","id":"schema-id"}]
       const nextJsRegex = /\[0,\s*\{\s*"type"\s*:\s*"application\/ld\+json"\s*,\s*"children"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
       let nextJsMatch;
 
@@ -680,7 +451,6 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
             strategy5Count++;
           }
         } catch (e) {
-          // Skip invalid entries
           const err = e as Error;
           console.log(`[SCHEMA] Strategy 5: Parse error - ${err.message}`);
         }
@@ -688,36 +458,22 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
 
       console.log(`[SCHEMA] Strategy 5 found: ${strategy5Count} schemas from Next.js hydration`);
     }
+
     console.log(`[SCHEMA] === FINAL RESULT: Found ${schemas.length} total unique schemas ===`);
 
     if (schemas.length === 0) {
-      // Add comprehensive diagnostic info
       const contextCount = (fetched.html.match(/@context/gi) || []).length;
       const schemaOrgCount = (fetched.html.match(/schema\.org/gi) || []).length;
       const jsonLdCount = (fetched.html.match(/application\/ld\+json/gi) || []).length;
-      const microDataCount = (fetched.html.match(/itemtype=/gi) || []).length;
-      const rdFaCount = (fetched.html.match(/vocab=/gi) || []).length;
 
       console.log(`[SCHEMA] ⚠️  No JSON-LD schemas extracted. Full Diagnostics:`);
       console.log(`[SCHEMA]    - JSON-LD script tags: ${jsonLdCount} (expected: 1+)`);
       console.log(`[SCHEMA]    - @context declarations: ${contextCount} (expected: 1+ if JSON-LD)`);
       console.log(`[SCHEMA]    - schema.org mentions: ${schemaOrgCount} (found: ${schemaOrgCount > 0 ? 'YES' : 'NO'})`);
-      console.log(`[SCHEMA]    - Microdata (itemtype): ${microDataCount}`);
-      console.log(`[SCHEMA]    - RDFa (vocab): ${rdFaCount}`);
 
-      // Provide specific warnings based on what was detected
       if (jsonLdCount === 0 && schemaOrgCount > 0) {
         console.log(`[SCHEMA]    ⚠️  Possible issue: schema.org found in text but no JSON-LD scripts`);
         warnings.push('No JSON-LD schema markup found (only text references to schema.org)');
-      } else if (jsonLdCount > 0 && contextCount === 0) {
-        console.log(`[SCHEMA]    ⚠️  JSON-LD scripts found but missing @context fields`);
-        warnings.push('JSON-LD scripts found but no valid @context declarations');
-      } else if (schemaOrgCount === 0 && (microDataCount > 0 || rdFaCount > 0)) {
-        console.log(`[SCHEMA]    ℹ️  Page uses Microdata or RDFa, not JSON-LD`);
-        warnings.push('Page uses Microdata or RDFa structured data, not JSON-LD (schema.org)');
-      } else {
-        console.log(`[SCHEMA]    ⚠️  No schema.org markup detected in any format`);
-        warnings.push('No schema.org markup found in JSON-LD, Microdata, or RDFa formats');
       }
     } else {
       console.log(`[SCHEMA] ✅ Successfully extracted ${schemas.length} schemas`);
@@ -729,27 +485,10 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
       });
     }
 
-    // Validate content quality
-    const textContent = mainContent.replace(/<[^>]*>/g, ' ').trim();
-    const wordCount = textContent.split(/\s+/).filter(w => w.length > 0).length;
-
-    // Content quality checks
-    if (textContent.length < 100) {
-      warnings.push('⚠️ Text content is too short (< 100 characters)');
-    } else if (textContent.length < 300) {
-      warnings.push('⚠️ Text content is short (< 300 characters)');
-    }
-
-    if (wordCount < 50) {
-      warnings.push(`⚠️ Text content has very few words (${wordCount} words)`);
-    } else if (wordCount < 100) {
-      warnings.push(`ℹ️ Text content is relatively short (${wordCount} words)`);
-    }
-
-    // Check for any remaining problematic tags that should have been removed
+    // Check for remaining script tags
     const scriptCount = (mainContent.match(/<script/gi) || []).length;
     const styleCount = (mainContent.match(/<style/gi) || []).length;
-
+    
     if (scriptCount > 0) {
       warnings.push(`⚠️ Content contains ${scriptCount} script tag(s) - these should have been removed`);
     }
@@ -779,6 +518,260 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
   }
 }
 
+// Extract main tag content - EXACT reference tool logic
+function extractMainTagContent(html: string, baseUrl: string): string {
+  const parser = new JSDOM(html, {
+    url: baseUrl,
+    pretendToBeVisual: true,
+  });
+
+  const document = parser.window.document;
+
+  // Find main element
+  let mainElement = document.querySelector('main');
+  if (!mainElement) {
+    mainElement = document.querySelector('article');
+  }
+  if (!mainElement) {
+    mainElement = document.querySelector('[role="main"]');
+  }
+
+  if (!mainElement) {
+    return '';
+  }
+
+  console.log(`[EXTRACTION] Found main element, extracting content...`);
+
+  // ONLY remove these tags
+  const removeOnly = ['script', 'style', 'noscript', 'iframe', 'svg', 'canvas'];
+  removeOnly.forEach(tag => {
+    mainElement!.querySelectorAll(tag).forEach(el => el.remove());
+  });
+
+  // ALL allowed tags
+  const allowedTags = new Set([
+    'main', 'header', 'section', 'article', 'aside', 'footer', 'nav', 'div',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'p', 'span', 'a', 'strong', 'em', 'b', 'i', 'u', 's', 'mark', 'small', 'sub', 'sup', 'br', 'hr',
+    'ul', 'ol', 'li', 'menu', 'dl', 'dt', 'dd',
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col',
+    'img', 'figure', 'figcaption', 'picture', 'source', 'video', 'audio',
+    'button', 'details', 'summary',
+    'meta', 'time', 'data', 'address',
+    'code', 'pre', 'kbd', 'var', 'samp',
+    'blockquote', 'q', 'cite', 'abbr', 'dfn',
+    'ins', 'del', 'wbr', 'ruby', 'rt', 'rp'
+  ]);
+
+  // Allowed attributes for each tag
+  const allowedAttributes: Record<string, string[]> = {
+    'a': ['href', 'rel', 'title', 'aria-label'],
+    'img': ['src', 'alt', 'title', 'width', 'height'],
+    'time': ['datetime'],
+    'meta': ['itemprop', 'content', 'name'],
+    'data': ['value'],
+    'ol': ['type', 'start'],
+    'li': ['value', 'itemprop', 'itemscope', 'itemtype'],
+    'source': ['src', 'srcset', 'type', 'media'],
+    'video': ['src', 'poster', 'controls', 'width', 'height'],
+    'audio': ['src', 'controls'],
+    'blockquote': ['cite'],
+    'q': ['cite'],
+    'abbr': ['title'],
+    'dfn': ['title'],
+    '_global': ['itemprop', 'itemscope', 'itemtype', 'aria-label', 'aria-current', 'aria-hidden', 'role', 'id']
+  };
+
+  // Process node recursively
+  const processNode = (node: Node): string => {
+    // Text node
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent || '';
+    }
+    
+    // Comment node
+    if (node.nodeType === Node.COMMENT_NODE) {
+      return `<!--${(node as Comment).textContent || ''}-->`;
+    }
+    
+    // Element node
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const element = node as Element;
+      const tagName = element.tagName.toLowerCase();
+      
+      // Skip removed elements
+      if (removeOnly.includes(tagName)) {
+        return '';
+      }
+      
+      // Process children first
+      let childContent = '';
+      element.childNodes.forEach(child => {
+        childContent += processNode(child);
+      });
+      
+      // If tag is allowed, wrap with tag
+      if (allowedTags.has(tagName)) {
+        // Build attributes string
+        let attrStr = '';
+        const tagAttrs = allowedAttributes[tagName] || [];
+        const globalAttrs = allowedAttributes['_global'] || [];
+        const allAttrs = [...tagAttrs, ...globalAttrs];
+        
+        // Special handling for img
+        if (tagName === 'img') {
+          let src = element.getAttribute('src') || 
+                    element.getAttribute('data-src') || 
+                    element.getAttribute('data-lazy-src') ||
+                    element.getAttribute('data-original') || '';
+          
+          // Convert relative URL to absolute
+          if (src && !src.startsWith('http') && !src.startsWith('data:')) {
+            try {
+              src = new URL(src, baseUrl).href;
+            } catch {}
+          }
+          
+          if (!src) return childContent;
+          
+          const alt = element.getAttribute('alt') || '';
+          const title = element.getAttribute('title') || '';
+          const width = element.getAttribute('width') || '';
+          const height = element.getAttribute('height') || '';
+          
+          attrStr = ` src="${src}"`;
+          if (alt) attrStr += ` alt="${alt}"`;
+          if (title) attrStr += ` title="${title}"`;
+          if (width) attrStr += ` width="${width}"`;
+          if (height) attrStr += ` height="${height}"`;
+          
+          return `<img${attrStr}>`;
+        }
+        
+        // Special handling for anchor
+        if (tagName === 'a') {
+          let href = element.getAttribute('href') || '';
+          if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto:') && !href.startsWith('javascript:')) {
+            try {
+              href = new URL(href, baseUrl).href;
+            } catch {}
+          }
+          if (href && !href.startsWith('javascript:')) {
+            attrStr += ` href="${href}"`;
+          }
+          const rel = element.getAttribute('rel');
+          if (rel) attrStr += ` rel="${rel}"`;
+          const ariaLabel = element.getAttribute('aria-label');
+          if (ariaLabel) attrStr += ` aria-label="${ariaLabel}"`;
+          
+          return `<a${attrStr}>${childContent}</a>`;
+        }
+        
+        // For other elements, preserve allowed attributes
+        allAttrs.forEach(attr => {
+          const value = element.getAttribute(attr);
+          if (value !== null) {
+            attrStr += ` ${attr}="${value}"`;
+          }
+        });
+        
+        // Self-closing tags
+        if (['br', 'hr', 'img', 'meta', 'source', 'col', 'wbr'].includes(tagName)) {
+          return `<${tagName}${attrStr}>`;
+        }
+        
+        return `<${tagName}${attrStr}>${childContent}</${tagName}>`;
+      }
+      
+      // Non-allowed tag - just return child content (unwrap)
+      return childContent;
+    }
+    
+    return '';
+  };
+  
+  // Extract content from main
+  let result = '';
+  mainElement.childNodes.forEach(child => {
+    result += processNode(child);
+  });
+  
+  // Format the HTML
+  const formatted = formatHtml(result);
+  
+  console.log(`[EXTRACTION] Extracted ${result.length} chars before formatting, ${formatted.length} after`);
+
+  return formatted;
+}
+
+// Format HTML with proper indentation
+function formatHtml(html: string): string {
+  // Block level tags that should be on their own line
+  const blockTags = ['main', 'header', 'section', 'article', 'aside', 'footer', 'nav', 'div',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 
+    'tfoot', 'tr', 'th', 'td', 'figure', 'figcaption', 'blockquote', 'pre', 'hr', 'br',
+    'details', 'summary', 'menu', 'address', 'form', 'fieldset', 'legend'];
+  
+  // Tags that increase indentation
+  const indentTags = ['main', 'header', 'section', 'article', 'aside', 'footer', 'nav', 'div',
+    'ul', 'ol', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'figure', 'blockquote', 'details', 'dl', 'dt', 'dd'];
+  
+  let result = html;
+  
+  // Add newlines before opening block tags
+  blockTags.forEach(tag => {
+    const regex = new RegExp(`(<${tag}[^>]*>)`, 'gi');
+    result = result.replace(regex, '\n$1');
+  });
+  
+  // Add newlines after closing block tags
+  blockTags.forEach(tag => {
+    const regex = new RegExp(`(</${tag}>)`, 'gi');
+    result = result.replace(regex, '$1\n');
+  });
+  
+  // Clean up multiple newlines
+  result = result.replace(/\n\s*\n/g, '\n').trim();
+  
+  // Add indentation
+  const lines = result.split('\n');
+  let indentLevel = 0;
+  const formattedLines: string[] = [];
+  
+  lines.forEach(line => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) return;
+    
+    // Check for closing tag first
+    let hasClosingTag = false;
+    indentTags.forEach(tag => {
+      if (trimmedLine.toLowerCase().startsWith(`</${tag}>`)) {
+        hasClosingTag = true;
+      }
+    });
+    
+    if (hasClosingTag && indentLevel > 0) {
+      indentLevel--;
+    }
+    
+    const indent = '  '.repeat(indentLevel);
+    formattedLines.push(indent + trimmedLine);
+    
+    // Check for opening tag (increase indent for next line)
+    if (!hasClosingTag) {
+      indentTags.forEach(tag => {
+        const openRegex = new RegExp(`<${tag}[^>]*>`, 'i');
+        const closeRegex = new RegExp(`</${tag}>`, 'i');
+        if (openRegex.test(trimmedLine) && !closeRegex.test(trimmedLine)) {
+          indentLevel++;
+        }
+      });
+    }
+  });
+  
+  return formattedLines.join('\n');
+}
+
 // Convert content to Bing submission format
 export function convertToBingPayload(
   extracted: ExtractedPageContent
@@ -799,9 +792,7 @@ export function convertToBingPayload(
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
     .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
     .replace(/<!--[\s\S]*?-->/g, '')
-    // Remove style attributes that might remain
     .replace(/\s+style\s*=\s*["'][^"']*["']/gi, '')
-    // Remove class attributes if they're too long (inline generated classes)
     .replace(/\s+class\s*=\s*"[^"]{200,}"/gi, '');
 
   // Build HTTP message (Bing expects base64 encoded HTTP response)
@@ -821,7 +812,7 @@ export function convertToBingPayload(
     url: extracted.url,
     httpMessage,
     structuredData,
-    dynamicServing: '0', // We're not doing JS rendering
+    dynamicServing: '0',
   };
 }
 
@@ -839,326 +830,4 @@ export function sanitizeForDebug(html: string, maxLength: number = 500): string 
   sanitized = sanitized.replace(/\s+/g, ' ').trim();
 
   return sanitized;
-}
-
-// Clean and format HTML content properly (remove wrapper divs and styling completely)
-export function cleanAndFormatHtml(html: string, baseUrl: string): string {
-  const parser = new JSDOM(html, {
-    url: baseUrl,
-    pretendToBeVisual: true,
-  });
-
-  const document = parser.window.document;
-
-  // Find main content element - ALWAYS use <main> if it exists
-  let mainElement = document.querySelector('main');
-  if (!mainElement) {
-    mainElement = document.querySelector('[role="main"]');
-  }
-
-  if (!mainElement) {
-    return '';
-  }
-
-  // Log what we found
-  const articleCount = mainElement.querySelectorAll('article').length;
-  const sectionCount = mainElement.querySelectorAll('section').length;
-  console.log(`[CONTENT EXTRACTION] Found <main> with ${articleCount} articles and ${sectionCount} sections`);
-
-  // Remove problematic tags completely
-  const removeOnly = ['script', 'style', 'noscript', 'iframe', 'svg', 'canvas', 'meta', 'link'];
-  removeOnly.forEach(tag => {
-    mainElement!.querySelectorAll(tag).forEach(el => el.remove());
-  });
-
-  // Semantic content tags - NO divs for layout/styling
-  const semanticTags = new Set([
-    // Semantic structure only
-    'main', 'header', 'section', 'article', 'aside', 'footer', 'nav',
-    // Headings
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    // Text content
-    'p', 'a', 'strong', 'em', 'b', 'i', 'u', 's', 'mark', 'small', 'sub', 'sup', 'br', 'hr',
-    // Lists
-    'ul', 'ol', 'li', 'dl', 'dt', 'dd',
-    // Tables
-    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col',
-    // Media
-    'img', 'figure', 'figcaption', 'picture', 'source', 'video', 'audio',
-    // Code
-    'code', 'pre', 'kbd', 'var', 'samp',
-    // Quote
-    'blockquote', 'q', 'cite', 'abbr', 'dfn',
-    // Others
-    'details', 'summary', 'time', 'address'
-  ]);
-
-  // Only these attributes are allowed (NO styling attributes at all)
-  const allowedAttributes: Record<string, string[]> = {
-    'a': ['href', 'rel', 'title'],
-    'img': ['src', 'alt', 'title', 'width', 'height'],
-    'time': ['datetime'],
-    'ol': ['type', 'start'],
-    'source': ['src', 'srcset', 'type', 'media'],
-    'video': ['src', 'poster', 'controls', 'width', 'height'],
-    'audio': ['src', 'controls'],
-    'blockquote': ['cite'],
-    'q': ['cite'],
-    'abbr': ['title'],
-    'dfn': ['title'],
-    'figure': ['id'],
-    'section': ['id'],
-    'article': ['id'],
-    'header': ['id'],
-    'nav': ['id'],
-    '_global': ['id', 'aria-label', 'role']
-  };
-
-  // Check if div is a wrapper div (only contains styling, no semantic content)
-  const isWrapperDiv = (element: Element): boolean => {
-    const classes = element.className || '';
-    // Common wrapper patterns
-    const wrapperPatterns = [
-      'container', 'flex', 'grid', 'gap', 'p-', 'px-', 'py-', 'm-', 'mx-', 'my-',
-      'w-', 'h-', 'max-', 'min-', 'bg-', 'text-', 'font-', 'rounded', 'border',
-      'shadow', 'overflow', 'absolute', 'relative', 'float', 'inline', 'block',
-      'transform', 'scale', 'translate', 'rotate', 'opacity', 'hover:', 'focus:',
-      'hidden', 'visible', 'fixed', 'sticky', 'z-', 'top-', 'left-', 'right-', 'bottom-'
-    ];
-
-    return wrapperPatterns.some(pattern => classes.includes(pattern));
-  };
-
-  // Process nodes recursively
-  const processNode = (node: Node): string => {
-    // Text node
-    if (node.nodeType === 3) { // Node.TEXT_NODE
-      return node.textContent || '';
-    }
-
-    // Comment node - skip
-    if (node.nodeType === 8) { // Node.COMMENT_NODE
-      return '';
-    }
-
-    // Element node
-    if (node.nodeType === 1) { // Node.ELEMENT_NODE
-      const element = node as Element;
-      const tagName = element.tagName.toLowerCase();
-
-      // Skip removed tags
-      if (removeOnly.includes(tagName)) {
-        return '';
-      }
-
-      // Process children
-      let childContent = '';
-      element.childNodes.forEach(child => {
-        childContent += processNode(child);
-      });
-
-      // If it's a wrapper div (styling div), just return children unwrapped
-      if (tagName === 'div' && isWrapperDiv(element)) {
-        return childContent;
-      }
-
-      // Special: If it's an article tag, ALWAYS preserve it with all content
-      if (tagName === 'article') {
-        let attrStr = '';
-        const tagAttrs = allowedAttributes[tagName] || [];
-        const globalAttrs = allowedAttributes['_global'] || [];
-        const allAllowedAttrs = [...new Set([...tagAttrs, ...globalAttrs])];
-
-        allAllowedAttrs.forEach(attr => {
-          const value = element.getAttribute(attr);
-          if (value !== null) {
-            attrStr += ` ${attr}="${value}"`;
-          }
-        });
-
-        return `<article${attrStr}>${childContent}</article>`;
-      }
-
-      // If tag is semantic, preserve it with clean attributes
-      if (semanticTags.has(tagName)) {
-        let attrStr = '';
-
-        // Special handling for img
-        if (tagName === 'img') {
-          let src = element.getAttribute('src') ||
-                    element.getAttribute('data-src') ||
-                    element.getAttribute('data-lazy-src') ||
-                    element.getAttribute('data-original') || '';
-
-          if (src && !src.startsWith('http') && !src.startsWith('data:')) {
-            try {
-              src = new URL(src, baseUrl).href;
-            } catch (e) {
-              // Keep original
-            }
-          }
-
-          if (!src) return '';
-
-          const alt = element.getAttribute('alt') || '';
-          const title = element.getAttribute('title') || '';
-
-          attrStr = ` src="${src}"`;
-          if (alt) attrStr += ` alt="${alt}"`;
-          if (title) attrStr += ` title="${title}"`;
-
-          return `<img${attrStr}>`;
-        }
-
-        // Special handling for anchors
-        if (tagName === 'a') {
-          let href = element.getAttribute('href') || '';
-          if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto:') && !href.startsWith('javascript:')) {
-            try {
-              href = new URL(href, baseUrl).href;
-            } catch (e) {
-              // Keep original
-            }
-          }
-
-          if (href && !href.startsWith('javascript:')) {
-            attrStr += ` href="${href}"`;
-          }
-
-          const rel = element.getAttribute('rel');
-          if (rel) attrStr += ` rel="${rel}"`;
-
-          return `<a${attrStr}>${childContent}</a>`;
-        }
-
-        // For other semantic tags, add only allowed attributes
-        const tagAttrs = allowedAttributes[tagName] || [];
-        const globalAttrs = allowedAttributes['_global'] || [];
-        const allAllowedAttrs = [...new Set([...tagAttrs, ...globalAttrs])];
-
-        allAllowedAttrs.forEach(attr => {
-          const value = element.getAttribute(attr);
-          if (value !== null) {
-            attrStr += ` ${attr}="${value}"`;
-          }
-        });
-
-        // Self-closing tags
-        if (['br', 'hr', 'img', 'source', 'col'].includes(tagName)) {
-          return `<${tagName}${attrStr}>`;
-        }
-
-        // Only return tag if it has content
-        if (!childContent.trim() && !['section', 'article', 'header', 'footer', 'nav'].includes(tagName)) {
-          return '';
-        }
-
-        return `<${tagName}${attrStr}>${childContent}</${tagName}>`;
-      }
-
-      // Non-semantic tag (span, div without semantic meaning) - return children only
-      if (tagName === 'div' || tagName === 'span') {
-        return childContent;
-      }
-
-      // Other non-allowed tags - return children
-      return childContent;
-    }
-
-    return '';
-  };
-
-  // Extract and process content - process ALL children including all articles
-  let result = '';
-  let nodeCount = 0;
-  mainElement.childNodes.forEach(child => {
-    const nodeContent = processNode(child);
-    if (nodeContent.trim()) {
-      result += nodeContent;
-      nodeCount++;
-    }
-  });
-
-  console.log(`[CONTENT EXTRACTION] Processed ${nodeCount} child nodes, total content length: ${result.length}`);
-
-  // Clean up excessive whitespace between tags
-  result = result
-    .replace(/>\s+</g, '><') // Remove spaces between tags
-    .replace(/\s+/g, ' ') // Normalize multiple spaces
-    .trim();
-
-  console.log(`[CONTENT EXTRACTION] After whitespace cleanup: ${result.length} chars`);
-
-  // Format with indentation
-  result = formatExtractedHtml(result);
-
-  console.log(`[CONTENT EXTRACTION] After formatting: ${result.length} chars`);
-
-  return result;
-}
-
-// Format extracted HTML with proper indentation and newlines
-function formatExtractedHtml(html: string): string {
-  const blockTags = ['main', 'header', 'section', 'article', 'aside', 'footer', 'nav', 'div',
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'ul', 'ol', 'li', 'table', 'thead', 'tbody',
-    'tfoot', 'tr', 'th', 'td', 'figure', 'figcaption', 'blockquote', 'pre', 'hr', 'br',
-    'details', 'summary', 'menu', 'address', 'form', 'fieldset', 'legend'];
-
-  const indentTags = ['main', 'header', 'section', 'article', 'aside', 'footer', 'nav', 'div',
-    'ul', 'ol', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'figure', 'blockquote', 'details', 'dl', 'dt', 'dd'];
-
-  let result = html;
-
-  // Add newlines before opening block tags
-  blockTags.forEach(tag => {
-    const regex = new RegExp(`(<${tag}[^>]*>)`, 'gi');
-    result = result.replace(regex, '\n$1');
-  });
-
-  // Add newlines after closing block tags
-  blockTags.forEach(tag => {
-    const regex = new RegExp(`(</${tag}>)`, 'gi');
-    result = result.replace(regex, '$1\n');
-  });
-
-  // Clean up multiple newlines
-  result = result.replace(/\n\s*\n/g, '\n').trim();
-
-  // Add indentation
-  const lines = result.split('\n');
-  let indentLevel = 0;
-  const formattedLines: string[] = [];
-
-  lines.forEach(line => {
-    const trimmedLine = line.trim();
-    if (!trimmedLine) return;
-
-    // Check if this is a closing tag first
-    let isClosingTag = false;
-    indentTags.forEach(tag => {
-      if (trimmedLine.toLowerCase().startsWith(`</${tag}>`)) {
-        isClosingTag = true;
-      }
-    });
-
-    if (isClosingTag && indentLevel > 0) {
-      indentLevel--;
-    }
-
-    const indent = '  '.repeat(indentLevel);
-    formattedLines.push(indent + trimmedLine);
-
-    // Check if this is an opening tag (increase indent for next line)
-    if (!isClosingTag) {
-      indentTags.forEach(tag => {
-        const openRegex = new RegExp(`<${tag}[^>]*>`, 'i');
-        const closeRegex = new RegExp(`</${tag}>`, 'i');
-        if (openRegex.test(trimmedLine) && !closeRegex.test(trimmedLine)) {
-          indentLevel++;
-        }
-      });
-    }
-  });
-
-  return formattedLines.join('\n');
 }
