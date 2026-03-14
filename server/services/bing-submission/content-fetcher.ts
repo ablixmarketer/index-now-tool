@@ -493,6 +493,7 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
       svg: /<svg[^>]*>/gi,
       canvas: /<canvas[^>]*>/gi,
       form: /<form[^>]*>/gi,
+      noscript: /<noscript[^>]*>/gi,
       onEvent: /\s+on\w+\s*=/gi,
       jsHref: /href\s*=\s*["']javascript:/gi,
       styleAttr: /\s+style\s*=/gi
@@ -501,10 +502,15 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
     Object.entries(dangerousPatterns).forEach(([name, pattern]) => {
       const matches = mainContent.match(pattern) || [];
       if (matches.length > 0) {
-        console.log(`[VALIDATION] ⚠️ Found ${matches.length} ${name} pattern(s)`);
-        warnings.push(`⚠️ Content contains ${matches.length} ${name} pattern(s) - should be removed`);
+        console.log(`[VALIDATION] ❌ Found ${matches.length} ${name} pattern(s) in sanitized content!`);
+        console.log(`[VALIDATION] Sample matches: ${matches.slice(0, 3).join(' | ')}`);
+        warnings.push(`❌ Content contains ${matches.length} ${name} pattern(s) - these should have been removed`);
       }
     });
+
+    if (warnings.length === 0) {
+      console.log(`[VALIDATION] ✅ All dangerous content has been successfully removed`);
+    }
 
     return {
       url: fetched.url,
@@ -559,9 +565,18 @@ function extractMainTagContent(html: string, baseUrl: string): string {
     'object', 'embed'
   ];
 
+  // Count and remove dangerous elements
+  const removedCounts: Record<string, number> = {};
   dangerousElements.forEach(tag => {
-    mainElement!.querySelectorAll(tag).forEach(el => el.remove());
+    const elements = mainElement!.querySelectorAll(tag);
+    removedCounts[tag] = elements.length;
+    if (elements.length > 0) {
+      console.log(`[EXTRACTION] Found ${elements.length} <${tag}> elements - removing...`);
+      elements.forEach(el => el.remove());
+    }
   });
+
+  console.log(`[EXTRACTION] Removed dangerous elements:`, removedCounts);
 
   // ALL allowed tags for content
   const allowedTags = new Set([
@@ -777,9 +792,25 @@ function sanitizeAttribute(value: string): string {
 function finalSanitizationPass(html: string): string {
   let sanitized = html;
 
-  // Remove any remaining script tags (encoded or not)
-  sanitized = sanitized.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-  sanitized = sanitized.replace(/<\s*script[^>]*>/gi, '');
+  // AGGRESSIVE script tag removal - multiple passes to catch all variations
+  // Remove script tags with any spacing/encoding variations
+  do {
+    const before = sanitized;
+
+    // Standard script tags
+    sanitized = sanitized.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+
+    // Malformed or partial script tags
+    sanitized = sanitized.replace(/<\s*script[^>]*>/gi, '');
+    sanitized = sanitized.replace(/<\s*\/\s*script\s*>/gi, '');
+
+    // Encoded/escaped script variations
+    sanitized = sanitized.replace(/&lt;script[^&]*&gt;[\s\S]*?&lt;\/script&gt;/gi, '');
+    sanitized = sanitized.replace(/&lt;script[^&]*&gt;/gi, '');
+
+    // Stop if no changes were made
+    if (before === sanitized) break;
+  } while (sanitized.includes('script'));
 
   // Remove style tags
   sanitized = sanitized.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
@@ -797,6 +828,7 @@ function finalSanitizationPass(html: string): string {
   sanitized = sanitized.replace(/<button[^>]*>[\s\S]*?<\/button>/gi, '');
   sanitized = sanitized.replace(/<textarea[^>]*>[\s\S]*?<\/textarea>/gi, '');
   sanitized = sanitized.replace(/<select[^>]*>[\s\S]*?<\/select>/gi, '');
+  sanitized = sanitized.replace(/<link[^>]*>/gi, '');
 
   // Remove any remaining onclick, onload, onerror, etc. attributes
   sanitized = sanitized.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
