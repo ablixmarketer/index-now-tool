@@ -485,16 +485,26 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
       });
     }
 
-    // Check for remaining script tags
-    const scriptCount = (mainContent.match(/<script/gi) || []).length;
-    const styleCount = (mainContent.match(/<style/gi) || []).length;
-    
-    if (scriptCount > 0) {
-      warnings.push(`⚠️ Content contains ${scriptCount} script tag(s) - these should have been removed`);
-    }
-    if (styleCount > 0) {
-      warnings.push(`⚠️ Content contains ${styleCount} style tag(s) - these should have been removed`);
-    }
+    // Check for remaining dangerous content (comprehensive validation)
+    const dangerousPatterns = {
+      script: /<script[^>]*>/gi,
+      style: /<style[^>]*>/gi,
+      iframe: /<iframe[^>]*>/gi,
+      svg: /<svg[^>]*>/gi,
+      canvas: /<canvas[^>]*>/gi,
+      form: /<form[^>]*>/gi,
+      onEvent: /\s+on\w+\s*=/gi,
+      jsHref: /href\s*=\s*["']javascript:/gi,
+      styleAttr: /\s+style\s*=/gi
+    };
+
+    Object.entries(dangerousPatterns).forEach(([name, pattern]) => {
+      const matches = mainContent.match(pattern) || [];
+      if (matches.length > 0) {
+        console.log(`[VALIDATION] ⚠️ Found ${matches.length} ${name} pattern(s)`);
+        warnings.push(`⚠️ Content contains ${matches.length} ${name} pattern(s) - should be removed`);
+      }
+    });
 
     return {
       url: fetched.url,
@@ -518,7 +528,7 @@ export function extractPageContent(fetched: FetchedContent): ExtractedPageConten
   }
 }
 
-// Extract main tag content - EXACT reference tool logic
+// Extract main tag content - ROBUST SANITIZATION PIPELINE
 function extractMainTagContent(html: string, baseUrl: string): string {
   const parser = new JSDOM(html, {
     url: baseUrl,
@@ -542,13 +552,18 @@ function extractMainTagContent(html: string, baseUrl: string): string {
 
   console.log(`[EXTRACTION] Found main element, extracting content...`);
 
-  // ONLY remove these tags
-  const removeOnly = ['script', 'style', 'noscript', 'iframe', 'svg', 'canvas'];
-  removeOnly.forEach(tag => {
+  // REMOVE DANGEROUS ELEMENTS COMPLETELY
+  const dangerousElements = [
+    'script', 'style', 'noscript', 'iframe', 'svg', 'canvas',
+    'form', 'input', 'button', 'textarea', 'select', 'link',
+    'object', 'embed'
+  ];
+
+  dangerousElements.forEach(tag => {
     mainElement!.querySelectorAll(tag).forEach(el => el.remove());
   });
 
-  // ALL allowed tags
+  // ALL allowed tags for content
   const allowedTags = new Set([
     'main', 'header', 'section', 'article', 'aside', 'footer', 'nav', 'div',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -556,30 +571,43 @@ function extractMainTagContent(html: string, baseUrl: string): string {
     'ul', 'ol', 'li', 'menu', 'dl', 'dt', 'dd',
     'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col',
     'img', 'figure', 'figcaption', 'picture', 'source', 'video', 'audio',
-    'button', 'details', 'summary',
-    'meta', 'time', 'data', 'address',
+    'details', 'summary',
+    'time', 'address',
     'code', 'pre', 'kbd', 'var', 'samp',
     'blockquote', 'q', 'cite', 'abbr', 'dfn',
     'ins', 'del', 'wbr', 'ruby', 'rt', 'rp'
   ]);
 
-  // Allowed attributes for each tag
+  // Allowed attributes for each tag (strict whitelist)
   const allowedAttributes: Record<string, string[]> = {
     'a': ['href', 'rel', 'title', 'aria-label'],
     'img': ['src', 'alt', 'title', 'width', 'height'],
-    'time': ['datetime'],
-    'meta': ['itemprop', 'content', 'name'],
-    'data': ['value'],
-    'ol': ['type', 'start'],
-    'li': ['value', 'itemprop', 'itemscope', 'itemtype'],
+    'picture': ['src', 'alt'],
     'source': ['src', 'srcset', 'type', 'media'],
-    'video': ['src', 'poster', 'controls', 'width', 'height'],
+    'video': ['src', 'poster', 'width', 'height'],
     'audio': ['src', 'controls'],
+    'time': ['datetime'],
+    'ol': ['type', 'start'],
+    'li': ['value'],
+    'table': [],
+    'tr': [],
+    'td': [],
+    'th': [],
+    'col': ['span'],
+    'colgroup': ['span'],
     'blockquote': ['cite'],
     'q': ['cite'],
     'abbr': ['title'],
     'dfn': ['title'],
-    '_global': ['itemprop', 'itemscope', 'itemtype', 'aria-label', 'aria-current', 'aria-hidden', 'role', 'id']
+    'code': [],
+    'pre': [],
+    'kbd': [],
+    'var': [],
+    'samp': [],
+    'del': ['datetime', 'cite'],
+    'ins': ['datetime', 'cite'],
+    // Global attributes available on all elements
+    '_global': ['id', 'itemprop', 'itemscope', 'itemtype', 'aria-label', 'aria-current', 'aria-hidden', 'role']
   };
 
   // Process node recursively
@@ -588,120 +616,205 @@ function extractMainTagContent(html: string, baseUrl: string): string {
     if (node.nodeType === Node.TEXT_NODE) {
       return node.textContent || '';
     }
-    
-    // Comment node
+
+    // Comment node - remove all comments
     if (node.nodeType === Node.COMMENT_NODE) {
-      return `<!--${(node as Comment).textContent || ''}-->`;
+      return '';
     }
-    
+
     // Element node
     if (node.nodeType === Node.ELEMENT_NODE) {
       const element = node as Element;
       const tagName = element.tagName.toLowerCase();
-      
-      // Skip removed elements
-      if (removeOnly.includes(tagName)) {
+
+      // Skip dangerous elements
+      if (dangerousElements.includes(tagName)) {
+        console.log(`[SANITIZE] Removed dangerous tag: <${tagName}>`);
         return '';
       }
-      
+
       // Process children first
       let childContent = '';
       element.childNodes.forEach(child => {
         childContent += processNode(child);
       });
-      
+
       // If tag is allowed, wrap with tag
       if (allowedTags.has(tagName)) {
-        // Build attributes string
+        // Build attributes string with strict filtering
         let attrStr = '';
+
+        // Get allowed attributes for this tag
         const tagAttrs = allowedAttributes[tagName] || [];
         const globalAttrs = allowedAttributes['_global'] || [];
         const allAttrs = [...tagAttrs, ...globalAttrs];
-        
+
         // Special handling for img
         if (tagName === 'img') {
-          let src = element.getAttribute('src') || 
-                    element.getAttribute('data-src') || 
+          let src = element.getAttribute('src') ||
+                    element.getAttribute('data-src') ||
                     element.getAttribute('data-lazy-src') ||
                     element.getAttribute('data-original') || '';
-          
+
           // Convert relative URL to absolute
           if (src && !src.startsWith('http') && !src.startsWith('data:')) {
             try {
               src = new URL(src, baseUrl).href;
-            } catch {}
+            } catch (e) {
+              console.log(`[SANITIZE] Failed to resolve image URL: ${src}`);
+              return childContent;
+            }
           }
-          
+
           if (!src) return childContent;
-          
+
           const alt = element.getAttribute('alt') || '';
           const title = element.getAttribute('title') || '';
           const width = element.getAttribute('width') || '';
           const height = element.getAttribute('height') || '';
-          
-          attrStr = ` src="${src}"`;
-          if (alt) attrStr += ` alt="${alt}"`;
-          if (title) attrStr += ` title="${title}"`;
-          if (width) attrStr += ` width="${width}"`;
-          if (height) attrStr += ` height="${height}"`;
-          
+
+          attrStr = ` src="${sanitizeAttribute(src)}"`;
+          if (alt) attrStr += ` alt="${sanitizeAttribute(alt)}"`;
+          if (title) attrStr += ` title="${sanitizeAttribute(title)}"`;
+          if (width) attrStr += ` width="${sanitizeAttribute(width)}"`;
+          if (height) attrStr += ` height="${sanitizeAttribute(height)}"`;
+
           return `<img${attrStr}>`;
         }
-        
-        // Special handling for anchor
+
+        // Special handling for anchor tags
         if (tagName === 'a') {
           let href = element.getAttribute('href') || '';
-          if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto:') && !href.startsWith('javascript:')) {
+
+          // Skip javascript: and dangerous links
+          if (href.toLowerCase().startsWith('javascript:')) {
+            return childContent;
+          }
+
+          // Convert relative URLs to absolute
+          if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto:') && !href.startsWith('tel:')) {
             try {
               href = new URL(href, baseUrl).href;
-            } catch {}
+            } catch (e) {
+              console.log(`[SANITIZE] Failed to resolve href: ${href}`);
+              href = '';
+            }
           }
-          if (href && !href.startsWith('javascript:')) {
-            attrStr += ` href="${href}"`;
+
+          if (href && !href.toLowerCase().startsWith('javascript:')) {
+            attrStr += ` href="${sanitizeAttribute(href)}"`;
           }
+
           const rel = element.getAttribute('rel');
-          if (rel) attrStr += ` rel="${rel}"`;
+          if (rel) attrStr += ` rel="${sanitizeAttribute(rel)}"`;
+
           const ariaLabel = element.getAttribute('aria-label');
-          if (ariaLabel) attrStr += ` aria-label="${ariaLabel}"`;
-          
+          if (ariaLabel) attrStr += ` aria-label="${sanitizeAttribute(ariaLabel)}"`;
+
+          const title = element.getAttribute('title');
+          if (title) attrStr += ` title="${sanitizeAttribute(title)}"`;
+
           return `<a${attrStr}>${childContent}</a>`;
         }
-        
-        // For other elements, preserve allowed attributes
+
+        // For other allowed elements, preserve only allowed attributes
         allAttrs.forEach(attr => {
           const value = element.getAttribute(attr);
-          if (value !== null) {
-            attrStr += ` ${attr}="${value}"`;
+          if (value !== null && value.trim() !== '') {
+            // Skip event handlers and dangerous attributes
+            if (attr.toLowerCase().startsWith('on')) return;
+            if (attr.toLowerCase().startsWith('data-')) return;
+            if (attr === 'style') return;
+            if (attr === 'class') return;
+
+            attrStr += ` ${attr}="${sanitizeAttribute(value)}"`;
           }
         });
-        
+
         // Self-closing tags
         if (['br', 'hr', 'img', 'meta', 'source', 'col', 'wbr'].includes(tagName)) {
           return `<${tagName}${attrStr}>`;
         }
-        
+
         return `<${tagName}${attrStr}>${childContent}</${tagName}>`;
       }
-      
-      // Non-allowed tag - just return child content (unwrap)
+
+      // Non-allowed tag - unwrap it, keep children
       return childContent;
     }
-    
+
     return '';
   };
-  
+
   // Extract content from main
   let result = '';
   mainElement.childNodes.forEach(child => {
     result += processNode(child);
   });
-  
+
+  // Post-processing: Final sanitization pass to remove any remaining dangerous content
+  result = finalSanitizationPass(result);
+
   // Format the HTML
   const formatted = formatHtml(result);
-  
+
   console.log(`[EXTRACTION] Extracted ${result.length} chars before formatting, ${formatted.length} after`);
 
   return formatted;
+}
+
+// Sanitize attribute values
+function sanitizeAttribute(value: string): string {
+  return value
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/&/g, '&amp;');
+}
+
+// Final sanitization pass to ensure no dangerous content remains
+function finalSanitizationPass(html: string): string {
+  let sanitized = html;
+
+  // Remove any remaining script tags (encoded or not)
+  sanitized = sanitized.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+  sanitized = sanitized.replace(/<\s*script[^>]*>/gi, '');
+
+  // Remove style tags
+  sanitized = sanitized.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  sanitized = sanitized.replace(/<\s*style[^>]*>/gi, '');
+
+  // Remove noscript, iframe, svg, canvas, embed, object
+  sanitized = sanitized.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '');
+  sanitized = sanitized.replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '');
+  sanitized = sanitized.replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, '');
+  sanitized = sanitized.replace(/<canvas[^>]*>[\s\S]*?<\/canvas>/gi, '');
+  sanitized = sanitized.replace(/<embed[^>]*>/gi, '');
+  sanitized = sanitized.replace(/<object[^>]*>[\s\S]*?<\/object>/gi, '');
+  sanitized = sanitized.replace(/<form[^>]*>[\s\S]*?<\/form>/gi, '');
+  sanitized = sanitized.replace(/<input[^>]*>/gi, '');
+  sanitized = sanitized.replace(/<button[^>]*>[\s\S]*?<\/button>/gi, '');
+  sanitized = sanitized.replace(/<textarea[^>]*>[\s\S]*?<\/textarea>/gi, '');
+  sanitized = sanitized.replace(/<select[^>]*>[\s\S]*?<\/select>/gi, '');
+
+  // Remove any remaining onclick, onload, onerror, etc. attributes
+  sanitized = sanitized.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
+  sanitized = sanitized.replace(/\s+on\w+\s*=\s*[^\s>]*/gi, '');
+
+  // Remove style attributes
+  sanitized = sanitized.replace(/\s+style\s*=\s*["'][^"']*["']/gi, '');
+  sanitized = sanitized.replace(/\s+style\s*=\s*[^\s>]*/gi, '');
+
+  // Remove class attributes (keep the structure, remove styling classes)
+  sanitized = sanitized.replace(/\s+class\s*=\s*["'][^"']*["']/gi, '');
+  sanitized = sanitized.replace(/\s+class\s*=\s*[^\s>]*/gi, '');
+
+  // Remove data-* attributes
+  sanitized = sanitized.replace(/\s+data-[^\s=]*\s*=\s*["'][^"']*["']/gi, '');
+  sanitized = sanitized.replace(/\s+data-[^\s=]*\s*=\s*[^\s>]*/gi, '');
+
+  return sanitized;
 }
 
 // Format HTML with proper indentation
@@ -786,14 +899,8 @@ export function convertToBingPayload(
   const urlObj = new URL(extracted.url);
   const siteUrl = urlObj.origin;
 
-  // Clean HTML - remove any remaining scripts, styles, comments, and event handlers
-  let cleanContent = extracted.mainContent
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/\s+style\s*=\s*["'][^"']*["']/gi, '')
-    .replace(/\s+class\s*=\s*"[^"]{200,}"/gi, '');
+  // Clean HTML - use robust sanitization pipeline
+  let cleanContent = finalSanitizationPass(extracted.mainContent);
 
   // Build HTTP message (Bing expects base64 encoded HTTP response)
   const httpResponse = `HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\r\n${cleanContent}`;
@@ -818,10 +925,7 @@ export function convertToBingPayload(
 
 // Sanitize content for debug preview
 export function sanitizeForDebug(html: string, maxLength: number = 500): string {
-  let sanitized = html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-    .replace(/<!--[\s\S]*?-->/g, '');
+  let sanitized = finalSanitizationPass(html);
 
   if (sanitized.length > maxLength) {
     sanitized = sanitized.substring(0, maxLength) + '...';
