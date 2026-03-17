@@ -626,19 +626,20 @@ function extractMainTagContent(html: string, baseUrl: string): string {
   };
 
   // Process node recursively
+  // Using numeric constants: TEXT_NODE=3, COMMENT_NODE=8, ELEMENT_NODE=1
   const processNode = (node: Node): string => {
     // Text node
-    if (node.nodeType === Node.TEXT_NODE) {
+    if (node.nodeType === 3) { // TEXT_NODE
       return node.textContent || '';
     }
 
     // Comment node - remove all comments
-    if (node.nodeType === Node.COMMENT_NODE) {
+    if (node.nodeType === 8) { // COMMENT_NODE
       return '';
     }
 
     // Element node
-    if (node.nodeType === Node.ELEMENT_NODE) {
+    if (node.nodeType === 1) { // ELEMENT_NODE
       const element = node as Element;
       const tagName = element.tagName.toLowerCase();
 
@@ -734,14 +735,16 @@ function extractMainTagContent(html: string, baseUrl: string): string {
 
         // For other allowed elements, preserve only allowed attributes
         allAttrs.forEach(attr => {
+          // NEVER allow event handlers, styling, or data attributes
+          const lowerAttr = attr.toLowerCase();
+          if (lowerAttr.startsWith('on')) return; // onclick, onload, etc.
+          if (lowerAttr.startsWith('data-')) return; // data-* attributes
+          if (lowerAttr === 'style') return; // Inline styles
+          if (lowerAttr === 'class') return; // CSS classes
+          if (lowerAttr === 'id' && tagName !== 'img' && tagName !== 'a') return; // Limit id to specific tags
+
           const value = element.getAttribute(attr);
           if (value !== null && value.trim() !== '') {
-            // Skip event handlers and dangerous attributes
-            if (attr.toLowerCase().startsWith('on')) return;
-            if (attr.toLowerCase().startsWith('data-')) return;
-            if (attr === 'style') return;
-            if (attr === 'class') return;
-
             attrStr += ` ${attr}="${sanitizeAttribute(value)}"`;
           }
         });

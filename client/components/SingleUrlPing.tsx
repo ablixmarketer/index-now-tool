@@ -20,7 +20,8 @@ interface SingleUrlPingProps {
 
 export function SingleUrlPing({ onPingComplete, disabled, debugModeEnabled = false }: SingleUrlPingProps) {
   const [url, setUrl] = useState('');
-  const [selectedEngines, setSelectedEngines] = useState<EngineId[]>(['indexnow']);
+  // Default: all search engines selected
+  const [selectedEngines, setSelectedEngines] = useState<EngineId[]>(['indexnow', 'bing', 'bing-url', 'bing-content']);
   const [isPinging, setIsPinging] = useState(false);
   const [error, setError] = useState('');
   const [debugResults, setDebugResults] = useState<PingResult[] | null>(null);
