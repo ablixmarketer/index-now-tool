@@ -37,7 +37,14 @@ export const handleBulkPing: RequestHandler = async (req, res) => {
 
     const { urls, engines: selectedEngines, mode } = validation.data;
 
+    console.log('[INDEXNOW BULK] Request received');
+    console.log(`[INDEXNOW BULK] URLs count: ${urls.length}`);
+    console.log(`[INDEXNOW BULK] Selected engines: ${selectedEngines.join(', ')}`);
+    console.log(`[INDEXNOW BULK] Mode: ${mode}`);
+    console.log(`[INDEXNOW BULK] First 3 URLs:`, urls.slice(0, 3));
+
     if (!INDEXNOW_KEY) {
+      console.error('[INDEXNOW BULK] Error: INDEXNOW_KEY not configured');
       return res.status(400).json({
         error: "IndexNow key not configured",
         message: "INDEXNOW_KEY environment variable is required",
@@ -45,6 +52,7 @@ export const handleBulkPing: RequestHandler = async (req, res) => {
     }
 
     if (!INDEXNOW_KEY_LOCATION) {
+      console.error('[INDEXNOW BULK] Error: INDEXNOW_KEY_LOCATION not configured');
       return res.status(400).json({
         error: "IndexNow key location not configured",
         message: "INDEXNOW_KEY_LOCATION environment variable is required",
@@ -54,9 +62,11 @@ export const handleBulkPing: RequestHandler = async (req, res) => {
     // Verify key file exists before proceeding
     try {
       const keyFileUrl = `${INDEXNOW_KEY_LOCATION}/${INDEXNOW_KEY}.txt`;
+      console.log(`[INDEXNOW BULK] Verifying key at: ${keyFileUrl}`);
       const keyCheckResponse = await fetch(keyFileUrl);
 
       if (!keyCheckResponse.ok) {
+        console.error(`[INDEXNOW BULK] Key file verification failed: ${keyCheckResponse.status}`);
         return res.status(400).json({
           error: "IndexNow key verification failed",
           message: `Key file not found at ${keyFileUrl}. Please upload your key file.`,
@@ -66,12 +76,16 @@ export const handleBulkPing: RequestHandler = async (req, res) => {
 
       const keyContent = await keyCheckResponse.text();
       if (keyContent.trim() !== INDEXNOW_KEY) {
+        console.error('[INDEXNOW BULK] Key file content mismatch');
         return res.status(400).json({
           error: "IndexNow key verification failed",
           message: "Key file content does not match configured key",
         });
       }
+
+      console.log('[INDEXNOW BULK] Key verification passed');
     } catch (keyCheckError) {
+      console.error('[INDEXNOW BULK] Key verification error:', keyCheckError);
       return res.status(400).json({
         error: "Failed to verify IndexNow key",
         message:
@@ -85,17 +99,22 @@ export const handleBulkPing: RequestHandler = async (req, res) => {
 
     // Process each engine
     for (const engineId of selectedEngines) {
+      console.log(`[INDEXNOW BULK] Processing engine: ${engineId}`);
       const engine = engines[engineId];
 
       if (engine.type === "bulk") {
         // Handle bulk ping to IndexNow hub
+        console.log(`[INDEXNOW BULK] Using bulk API for ${engineId}`);
         const bulkResults = await pingBulkToHub(urls, mode);
+        console.log(`[INDEXNOW BULK] Received ${bulkResults.length} results from hub`);
         results.push(...bulkResults);
       } else {
         // Handle individual pings to engines like Bing
+        console.log(`[INDEXNOW BULK] Using individual pings for ${engineId}`);
         const singleResults = await Promise.all(
           urls.map((url) => limit(() => pingSingleUrl(url, engineId, mode))),
         );
+        console.log(`[INDEXNOW BULK] Received ${singleResults.length} individual results`);
         results.push(...singleResults);
       }
     }
@@ -107,6 +126,9 @@ export const handleBulkPing: RequestHandler = async (req, res) => {
       failed: results.filter((r) => r.status >= 400 && r.status !== 429).length,
       rateLimited: results.filter((r) => r.status === 429).length,
     };
+
+    console.log('[INDEXNOW BULK] Response summary:', summary);
+    console.log('[INDEXNOW BULK] Sample results:', results.slice(0, 3));
 
     const response: BulkPingResponse = {
       results,
