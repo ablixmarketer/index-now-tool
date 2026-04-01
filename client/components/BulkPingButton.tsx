@@ -61,7 +61,13 @@ export function BulkPingButton({
     setError('');
     setIsPinging(true);
     onPingStart();
-    
+
+    // Debug logging
+    console.log('[BULK PING] Starting bulk submission');
+    console.log(`[BULK PING] Selected URLs: ${selectedUrls.length}`);
+    console.log(`[BULK PING] Selected Engines: ${selectedEngines.join(', ')}`);
+    console.log(`[BULK PING] First 5 URLs:`, selectedUrls.slice(0, 5));
+
     // Initialize bulk results
     setBulkResults({
       total: selectedUrls.length * selectedEngines.length,
@@ -79,12 +85,16 @@ export function BulkPingButton({
         urlBatches.push(selectedUrls.slice(i, i + batchSize));
       }
 
+      console.log(`[BULK PING] Created ${urlBatches.length} batches of ${batchSize} URLs each`);
+
       setTotalBatches(urlBatches.length * selectedEngines.length);
       let currentBatchIndex = 0;
       const allResults: PingResult[] = [];
 
       // Process each engine
       for (const engineId of selectedEngines) {
+        console.log(`[BULK PING] Processing engine: ${engineId}`);
+
         // Process each batch for current engine
         for (const urlBatch of urlBatches) {
           currentBatchIndex++;
@@ -94,21 +104,26 @@ export function BulkPingButton({
           try {
             let batchResults: any;
 
+            console.log(`[BULK PING] Batch ${currentBatchIndex}: ${engineId} - Submitting ${urlBatch.length} URLs`);
+
             // Use appropriate API based on engine type
             if (engineId === 'bing-content') {
               // Use Bing Content Submission API
+              console.log(`[BULK PING] Using Bing Content Submission API`);
               batchResults = await bingApi.submitContentBulk({
                 urls: urlBatch,
                 engines: [engineId]
               });
             } else if (engineId === 'bing-url') {
               // Use Bing URL Submission API
+              console.log(`[BULK PING] Using Bing URL Submission API`);
               batchResults = await bingApi.submitUrlBulk({
                 urls: urlBatch,
                 engines: [engineId]
               });
             } else {
               // Use IndexNow API for indexnow and bing
+              console.log(`[BULK PING] Using IndexNow API`);
               batchResults = await indexnowApi.bulk({
                 urls: urlBatch,
                 engines: [engineId],
@@ -118,6 +133,9 @@ export function BulkPingButton({
 
             // Update bulk results summary
             if (batchResults.results) {
+              console.log(`[BULK PING] Batch ${currentBatchIndex} received ${batchResults.results.length} results`);
+              console.log(`[BULK PING] Results sample:`, batchResults.results.slice(0, 2));
+
               allResults.push(...batchResults.results);
 
               // Update counters
@@ -126,6 +144,8 @@ export function BulkPingButton({
                 const failed = allResults.filter(r => r.status >= 400 && r.status !== 429).length;
                 const rateLimited = allResults.filter(r => r.status === 429).length;
                 const processing = prev.total - allResults.length;
+
+                console.log(`[BULK PING] Updated counters - Success: ${succeeded}, Failed: ${failed}, Processing: ${processing}`);
 
                 return {
                   total: prev.total,
@@ -138,12 +158,14 @@ export function BulkPingButton({
 
               // Send progress updates
               batchResults.results.forEach(result => onPingProgress(result));
+            } else {
+              console.warn(`[BULK PING] Batch ${currentBatchIndex} returned no results`);
             }
 
             // Small delay between batches to be respectful
             await new Promise(resolve => setTimeout(resolve, 500));
           } catch (batchError) {
-            console.error(`Batch ${currentBatchIndex} failed:`, batchError);
+            console.error(`[BULK PING] Batch ${currentBatchIndex} failed:`, batchError);
             // Create error results for failed batch
             const errorResults: PingResult[] = urlBatch.map(url => ({
               url,
@@ -156,6 +178,8 @@ export function BulkPingButton({
               error: batchError instanceof Error ? batchError.message : 'Unknown batch error'
             }));
 
+            console.log(`[BULK PING] Created ${errorResults.length} error results for failed batch`);
+
             allResults.push(...errorResults);
             errorResults.forEach(result => onPingProgress(result));
           }
@@ -163,6 +187,12 @@ export function BulkPingButton({
       }
 
       // Final update
+      console.log(`[BULK PING] Bulk ping completed!`);
+      console.log(`[BULK PING] Total results: ${allResults.length}`);
+      console.log(`[BULK PING] Succeeded: ${allResults.filter(r => r.status === 200 || r.status === 202).length}`);
+      console.log(`[BULK PING] Failed: ${allResults.filter(r => r.status >= 400 && r.status !== 429).length}`);
+      console.log(`[BULK PING] All results:`, allResults);
+
       setBulkResults(prev => ({
         ...prev,
         processing: 0
@@ -173,8 +203,11 @@ export function BulkPingButton({
       
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to ping URLs';
+      console.error('[BULK PING] Fatal error:', err);
+      console.error('[BULK PING] Error message:', message);
       setError(message);
     } finally {
+      console.log('[BULK PING] Bulk ping operation finished (isPinging state reset)');
       setIsPinging(false);
     }
   };
