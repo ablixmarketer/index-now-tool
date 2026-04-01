@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Zap, AlertCircle, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { engines, type EngineId, type PingResult } from '@shared/indexnow';
-import { indexnowApi } from '@/lib/fetch-utils';
+import { indexnowApi, bingApi } from '@/lib/fetch-utils';
 
 interface BulkPingButtonProps {
   selectedUrls: string[];
@@ -19,14 +19,15 @@ interface BulkPingButtonProps {
   disabled?: boolean;
 }
 
-export function BulkPingButton({ 
-  selectedUrls, 
-  onPingStart, 
-  onPingProgress, 
+export function BulkPingButton({
+  selectedUrls,
+  onPingStart,
+  onPingProgress,
   onPingComplete,
-  disabled 
+  disabled
 }: BulkPingButtonProps) {
-  const [selectedEngines, setSelectedEngines] = useState<EngineId[]>(['indexnow']);
+  // Default: all search engines selected
+  const [selectedEngines, setSelectedEngines] = useState<EngineId[]>(['indexnow', 'bing', 'bing-url', 'bing-content']);
   const [isPinging, setIsPinging] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentBatch, setCurrentBatch] = useState(0);
@@ -91,16 +92,34 @@ export function BulkPingButton({
           setProgress((currentBatchIndex / (urlBatches.length * selectedEngines.length)) * 100);
 
           try {
-            const batchResults = await indexnowApi.bulk({
-              urls: urlBatch,
-              engines: [engineId],
-              mode: 'update'
-            });
+            let batchResults: any;
+
+            // Use appropriate API based on engine type
+            if (engineId === 'bing-content') {
+              // Use Bing Content Submission API
+              batchResults = await bingApi.submitContentBulk({
+                urls: urlBatch,
+                engines: [engineId]
+              });
+            } else if (engineId === 'bing-url') {
+              // Use Bing URL Submission API
+              batchResults = await bingApi.submitUrlBulk({
+                urls: urlBatch,
+                engines: [engineId]
+              });
+            } else {
+              // Use IndexNow API for indexnow and bing
+              batchResults = await indexnowApi.bulk({
+                urls: urlBatch,
+                engines: [engineId],
+                mode: 'update'
+              });
+            }
 
             // Update bulk results summary
             if (batchResults.results) {
               allResults.push(...batchResults.results);
-              
+
               // Update counters
               setBulkResults(prev => {
                 const succeeded = allResults.filter(r => r.status === 200 || r.status === 202).length;
@@ -136,7 +155,7 @@ export function BulkPingButton({
               final: true,
               error: batchError instanceof Error ? batchError.message : 'Unknown batch error'
             }));
-            
+
             allResults.push(...errorResults);
             errorResults.forEach(result => onPingProgress(result));
           }
