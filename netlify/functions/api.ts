@@ -5,8 +5,8 @@ let cachedHandler: any;
 export const handler = async (event: any, context: any) => {
   try {
     if (!cachedHandler) {
-      // Dynamic import to avoid bundling issues
-      const { createApp } = await import("../../server/index.js");
+      // Import the built server from dist
+      const { createApp } = await import("../../dist/server/index.mjs");
       const app = await createApp();
       cachedHandler = serverless(app);
     }
