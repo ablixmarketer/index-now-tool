@@ -6,8 +6,8 @@
 
 
 [functions]
-  node_bundler = "zisi"
-  included_files = ["dist/server/**"]
+  node_bundler = "esbuild"
+  external_node_modules = ["lightningcss"]
 
 [[redirects]]
   force = true

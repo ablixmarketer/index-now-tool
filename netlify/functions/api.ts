@@ -1,12 +1,55 @@
 import serverless from "serverless-http";
+import express from "express";
+import cors from "cors";
+
+// Import route handlers directly
+import { handleDemo } from "../../server/routes/demo";
+import { handleSitemapScan } from "../../server/routes/sitemap";
+import {
+  handleBulkPing,
+  handleSinglePing,
+  handleKeyVerification,
+} from "../../server/routes/indexnow";
+import {
+  handleSingleBingUrlSubmission,
+  handleBulkBingUrlSubmission,
+} from "../../server/routes/bing-url-submission";
+import {
+  handleSingleBingContentSubmission,
+  handleBulkBingContentSubmission,
+} from "../../server/routes/bing-content-submission";
 
 let cachedHandler: any;
+
+async function createApp() {
+  const app = express();
+
+  // Middleware
+  app.use(cors());
+  app.use(express.json({ limit: "10mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+  // Routes
+  app.get("/api/ping", (req, res) => {
+    res.json({ message: "pong", timestamp: new Date().toISOString() });
+  });
+
+  app.get("/api/demo", handleDemo);
+  app.post("/api/sitemap/scan", handleSitemapScan);
+  app.post("/api/indexnow/bulk", handleBulkPing);
+  app.post("/api/indexnow/single", handleSinglePing);
+  app.post("/api/indexnow/verify-key", handleKeyVerification);
+  app.post("/api/bing/submit-urls/single", handleSingleBingUrlSubmission);
+  app.post("/api/bing/submit-urls/bulk", handleBulkBingUrlSubmission);
+  app.post("/api/bing/submit-content/single", handleSingleBingContentSubmission);
+  app.post("/api/bing/submit-content/bulk", handleBulkBingContentSubmission);
+
+  return app;
+}
 
 export const handler = async (event: any, context: any) => {
   try {
     if (!cachedHandler) {
-      // Import the built server from dist
-      const { createApp } = await import("../../dist/server/index.mjs");
       const app = await createApp();
       cachedHandler = serverless(app);
     }
