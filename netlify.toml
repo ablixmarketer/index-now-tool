@@ -7,7 +7,7 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["lightningcss"]
+  external_node_modules = ["lightningcss", "jsdom"]
 
 [[redirects]]
   force = true
