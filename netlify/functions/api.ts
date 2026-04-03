@@ -2,7 +2,7 @@ import serverless from "serverless-http";
 import express from "express";
 import cors from "cors";
 
-// Import route handlers directly
+// Import route handlers that don't require jsdom
 import { handleDemo } from "../../server/routes/demo";
 import { handleSitemapScan } from "../../server/routes/sitemap";
 import {
@@ -14,10 +14,6 @@ import {
   handleSingleBingUrlSubmission,
   handleBulkBingUrlSubmission,
 } from "../../server/routes/bing-url-submission";
-import {
-  handleSingleBingContentSubmission,
-  handleBulkBingContentSubmission,
-} from "../../server/routes/bing-content-submission";
 
 let cachedHandler: any;
 
@@ -29,7 +25,7 @@ async function createApp() {
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-  // Routes
+  // Routes that work in Netlify Functions (no jsdom dependency)
   app.get("/api/ping", (req, res) => {
     res.json({ message: "pong", timestamp: new Date().toISOString() });
   });
@@ -41,8 +37,14 @@ async function createApp() {
   app.post("/api/indexnow/verify-key", handleKeyVerification);
   app.post("/api/bing/submit-urls/single", handleSingleBingUrlSubmission);
   app.post("/api/bing/submit-urls/bulk", handleBulkBingUrlSubmission);
-  app.post("/api/bing/submit-content/single", handleSingleBingContentSubmission);
-  app.post("/api/bing/submit-content/bulk", handleBulkBingContentSubmission);
+
+  // Note: Bing Content Submission routes (which require jsdom) are not available
+  // in Netlify Functions. They can be accessed via the static site's API
+  // or deployed separately using a different hosting provider.
+
+  app.use((req, res) => {
+    res.status(404).json({ error: "API endpoint not found" });
+  });
 
   return app;
 }
