@@ -56,17 +56,38 @@ export function SingleUrlPing({ onPingComplete, disabled, debugModeEnabled = fal
         try {
           if (engineId === 'bing-content') {
             // Use content submission API
-            const bingData = await bingApi.submitContentSingleWithDebug(
-              {
-                url: trimmedUrl,
-                engines: [engineId],
-              },
-              debugModeEnabled
-            );
-            allResults.push(...bingData.results);
+            let bingData: any = null;
+            try {
+              bingData = await bingApi.submitContentSingleWithDebug(
+                {
+                  url: trimmedUrl,
+                  engines: [engineId],
+                },
+                debugModeEnabled
+              );
+              allResults.push(...bingData.results);
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              if (errorMsg.includes('Service not available') || errorMsg.includes('501')) {
+                console.warn(`Bing Content Submission not available on this platform`);
+                const result: PingResult = {
+                  url: trimmedUrl,
+                  engine: 'bing-content',
+                  status: 501,
+                  meaning: 'Service Unavailable',
+                  latency: 0,
+                  attempts: 1,
+                  final: true,
+                  error: 'Bing Content Submission requires a full Node.js environment. Use Bing URL Submission instead, or deploy locally/on Render for full HTML content extraction.'
+                };
+                allResults.push(result);
+              } else {
+                throw error;
+              }
+            }
 
             // Process debug info and populate debugLogger
-            if (debugModeEnabled && bingData.results) {
+            if (debugModeEnabled && bingData && bingData.results) {
               bingData.results.forEach((result: PingResult) => {
                 if (result.debug) {
                   console.log(`[DEBUG] ${engineId} Result:`, result.debug);

@@ -38,9 +38,22 @@ async function createApp() {
   app.post("/api/bing/submit-urls/single", handleSingleBingUrlSubmission);
   app.post("/api/bing/submit-urls/bulk", handleBulkBingUrlSubmission);
 
-  // Note: Bing Content Submission routes (which require jsdom) are not available
-  // in Netlify Functions. They can be accessed via the static site's API
-  // or deployed separately using a different hosting provider.
+  // Bing Content Submission routes - not available in Netlify Functions due to jsdom limitation
+  app.post("/api/bing/submit-content/single", (req, res) => {
+    res.status(501).json({
+      error: "Service not available",
+      message: "Bing Content Submission is not available on Netlify due to runtime limitations (requires jsdom). Please use the local development environment or deploy to Render/self-hosted server for full functionality.",
+      note: "You can still use Bing URL Submission and IndexNow submission on this platform."
+    });
+  });
+
+  app.post("/api/bing/submit-content/bulk", (req, res) => {
+    res.status(501).json({
+      error: "Service not available",
+      message: "Bing Content Submission is not available on Netlify due to runtime limitations (requires jsdom). Please use the local development environment or deploy to Render/self-hosted server for full functionality.",
+      note: "You can still use Bing URL Submission and IndexNow submission on this platform."
+    });
+  });
 
   app.use((req, res) => {
     res.status(404).json({ error: "API endpoint not found" });

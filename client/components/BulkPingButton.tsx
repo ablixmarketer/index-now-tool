@@ -110,10 +110,31 @@ export function BulkPingButton({
             if (engineId === 'bing-content') {
               // Use Bing Content Submission API
               console.log(`[BULK PING] Using Bing Content Submission API`);
-              batchResults = await bingApi.submitContentBulk({
-                urls: urlBatch,
-                engines: [engineId]
-              });
+              try {
+                batchResults = await bingApi.submitContentBulk({
+                  urls: urlBatch,
+                  engines: [engineId]
+                });
+              } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                if (errorMsg.includes('Service not available') || errorMsg.includes('501')) {
+                  console.warn(`[BULK PING] Bing Content Submission not available on this platform`);
+                  // Create error results explaining the limitation
+                  const errorResults: PingResult[] = urlBatch.map(url => ({
+                    url,
+                    engine: engineId,
+                    status: 501,
+                    meaning: 'Service Unavailable',
+                    latency: 0,
+                    attempts: 1,
+                    final: true,
+                    error: 'Bing Content Submission requires a full Node.js environment. Use local development or Render deployment. For Netlify, use Bing URL Submission instead.'
+                  }));
+                  batchResults = { results: errorResults };
+                } else {
+                  throw error;
+                }
+              }
             } else if (engineId === 'bing-url') {
               // Use Bing URL Submission API
               console.log(`[BULK PING] Using Bing URL Submission API`);

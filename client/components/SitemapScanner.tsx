@@ -230,6 +230,12 @@ export function SitemapScanner({
             IndexNow pings.
           </AlertDescription>
         </Alert>
+        <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950">
+          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
+            <strong>Note:</strong> Bing Content Submission is not available on Netlify due to runtime limitations. Use <strong>Bing URL Submission</strong> instead, or deploy locally/on Render for full HTML content extraction.
+          </AlertDescription>
+        </Alert>
       </div>
 
       <Separator />
