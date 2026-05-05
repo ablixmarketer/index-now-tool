@@ -272,6 +272,7 @@ export default function Index() {
                           onPingProgress={handlePingProgress}
                           onPingComplete={handlePingComplete}
                           disabled={isScanning}
+                          debugModeEnabled={debugModeEnabled}
                         />
                       ) : (
                         <div className="text-center py-8">

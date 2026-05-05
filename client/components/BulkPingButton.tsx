@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Zap, AlertCircle, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { engines, type EngineId, type PingResult } from '@shared/indexnow';
 import { indexnowApi, bingApi } from '@/lib/fetch-utils';
+import { debugLogger } from '@/lib/debug-logger';
 
 interface BulkPingButtonProps {
   selectedUrls: string[];
@@ -17,6 +18,7 @@ interface BulkPingButtonProps {
   onPingProgress: (result: PingResult) => void;
   onPingComplete: (results: PingResult[]) => void;
   disabled?: boolean;
+  debugModeEnabled?: boolean;
 }
 
 export function BulkPingButton({
@@ -24,7 +26,8 @@ export function BulkPingButton({
   onPingStart,
   onPingProgress,
   onPingComplete,
-  disabled
+  disabled,
+  debugModeEnabled = false
 }: BulkPingButtonProps) {
   // Default: all search engines selected
   const [selectedEngines, setSelectedEngines] = useState<EngineId[]>(['indexnow', 'bing', 'bing-url', 'bing-content']);
@@ -158,6 +161,91 @@ export function BulkPingButton({
               console.log(`[BULK PING] Results sample:`, batchResults.results.slice(0, 2));
 
               allResults.push(...batchResults.results);
+
+              // Process debug info for Bing Content Submission results
+              if (debugModeEnabled && engineId === 'bing-content') {
+                batchResults.results.forEach((result: PingResult) => {
+                  if (result.debug) {
+                    console.log(`[BULK PING] Processing debug info for ${result.url}`);
+
+                    const debugInfo = result.debug as any;
+
+                    // Extract content extraction info
+                    const contentExtraction = debugInfo.contentExtraction || {
+                      sourceTag: 'none' as const,
+                      sanitizedPreview: '',
+                      characterCount: 0,
+                      isValid: false,
+                      isEmpty: true,
+                      isHeaderFooterOnly: false,
+                      warnings: debugInfo.reason ? [debugInfo.reason] : [],
+                    };
+
+                    // Extract metadata info
+                    const metadata = debugInfo.metadata || {
+                      title: '',
+                      description: '',
+                      canonical: '',
+                      robots: '',
+                      publishDate: null,
+                      lastModified: null,
+                    };
+
+                    // Extract schema info
+                    const schema = debugInfo.schema || {
+                      found: false,
+                      count: 0,
+                      types: [],
+                      schemas: [],
+                      isValid: false,
+                      validationErrors: [],
+                      sentToBing: false,
+                    };
+
+                    // Log individual extractions
+                    if (debugInfo.contentExtraction) {
+                      debugLogger.logContentExtraction(result.url, debugInfo.contentExtraction);
+                    }
+                    if (debugInfo.metadata) {
+                      debugLogger.logMetadataExtraction(result.url, debugInfo.metadata);
+                    }
+                    if (debugInfo.schema) {
+                      debugLogger.logSchemaExtraction(result.url, debugInfo.schema);
+                    }
+
+                    // Log the full content submission debug info
+                    const debugEntry: any = {
+                      url: result.url,
+                      contentExtraction: contentExtraction,
+                      metadata: metadata,
+                      schema: schema,
+                      contentHash: debugInfo.contentHash || '',
+                      previousHash: debugInfo.previousHash || null,
+                      contentChanged: debugInfo.contentChanged !== undefined ? debugInfo.contentChanged : false,
+                      requestPayload: {},
+                      httpStatus: result.status || 0,
+                      bingResponse: result.response || '',
+                      bingResponseParsed: null,
+                      success: (result.status === 200 || result.status === 202 || result.status === 304),
+                      retryAttempts: result.attempts || 1,
+                      rateLimitHeaders: {},
+                      latency: result.latency || 0,
+                      error: result.error || null,
+                    };
+
+                    if (debugInfo.errorType || debugInfo.errorMessage) {
+                      debugEntry.debug = {
+                        errorType: debugInfo.errorType || '',
+                        errorMessage: debugInfo.errorMessage || '',
+                        errorStack: debugInfo.errorStack || '',
+                        fullError: debugInfo.fullError || '',
+                      };
+                    }
+
+                    debugLogger.logContentSubmission(debugEntry);
+                  }
+                });
+              }
 
               // Update counters
               setBulkResults(prev => {
