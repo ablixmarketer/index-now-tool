@@ -1,19 +1,7 @@
 [build]
   command = "npm run build"
-  functions = "netlify/functions"
   publish = "dist/spa"
-  environment = { NODE_ENV = "production" }
-
-
-[functions]
-  node_bundler = "esbuild"
-  external_node_modules = ["lightningcss"]
-
-[[redirects]]
-  force = true
-  from = "/api/*"
-  status = 200
-  to = "/.netlify/functions/api/:splat"
+  environment = { NODE_ENV = "production", VITE_API_BASE_URL = "https://index-now-tool.onrender.com" }
 
 # SPA fallback - serve index.html for all non-API routes
 [[redirects]]

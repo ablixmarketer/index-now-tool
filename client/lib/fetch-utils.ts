@@ -1,10 +1,21 @@
+// Get API base URL from environment or use relative URLs
+const getApiBaseUrl = (): string => {
+  // In production (Netlify), use the Render backend
+  // In development, use relative paths (Vite proxy)
+  if (import.meta.env.PROD) {
+    return import.meta.env.VITE_API_BASE_URL || 'https://index-now-tool.onrender.com';
+  }
+  return ''; // Relative URLs for dev (Vite proxy)
+};
+
 // Utility function for robust API calls with proper error handling
 export async function apiCall<T = any>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
   try {
-    const response = await fetch(url, {
+    const apiUrl = getApiBaseUrl() + url;
+    const response = await fetch(apiUrl, {
       headers: {
         'Content-Type': 'application/json',
         ...options.headers
