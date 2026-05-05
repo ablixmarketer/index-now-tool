@@ -414,7 +414,7 @@ export default function Index() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <ResultsTable results={pingResults} />
+                      <ResultsTable results={pingResults} debugModeEnabled={debugModeEnabled} />
                     </CardContent>
                   </Card>
                 </>
@@ -431,7 +431,7 @@ export default function Index() {
                   <EngineStatus results={pingResults} />
 
                   {/* Results Table */}
-                  <ResultsTable results={pingResults} />
+                  <ResultsTable results={pingResults} debugModeEnabled={debugModeEnabled} />
                 </>
               )}
             </motion.div>
