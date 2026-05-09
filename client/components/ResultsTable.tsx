@@ -3,9 +3,10 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Copy, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import { Copy, ExternalLink, ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { type PingResult, getStatusBadgeVariant } from '@shared/indexnow';
 import { DebugOutputPanel } from '@/components/DebugOutputPanel';
+import { DeepDebugModal } from '@/components/DeepDebugModal';
 import { debugLogger } from '@/lib/debug-logger';
 
 interface ResultsTableProps {
@@ -15,6 +16,7 @@ interface ResultsTableProps {
 
 export function ResultsTable({ results, debugModeEnabled = false }: ResultsTableProps) {
   const [expandedUrls, setExpandedUrls] = useState<Set<string>>(new Set());
+  const [selectedUrlForDeepDebug, setSelectedUrlForDeepDebug] = useState<string | null>(null);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -63,24 +65,36 @@ export function ResultsTable({ results, debugModeEnabled = false }: ResultsTable
               </div>
               <div className="flex items-center gap-2 ml-3">
                 {hasDebug && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleUrlExpand(url)}
-                    className="text-xs gap-1"
-                  >
-                    {isExpanded ? (
-                      <>
-                        <ChevronUp className="h-3 w-3" />
-                        Hide Debug
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown className="h-3 w-3" />
-                        View Debug
-                      </>
-                    )}
-                  </Button>
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedUrlForDeepDebug(url)}
+                      className="text-xs gap-1 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                      title="Deep debug report"
+                    >
+                      <Eye className="h-3 w-3" />
+                      Deep Debug
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleUrlExpand(url)}
+                      className="text-xs gap-1"
+                    >
+                      {isExpanded ? (
+                        <>
+                          <ChevronUp className="h-3 w-3" />
+                          Hide
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-3 w-3" />
+                          Quick
+                        </>
+                      )}
+                    </Button>
+                  </>
                 )}
                 <Badge variant="outline" className="text-xs flex-shrink-0">
                   {urlResults.length} engines
@@ -152,6 +166,15 @@ export function ResultsTable({ results, debugModeEnabled = false }: ResultsTable
           </div>
         );
       })}
+
+      {/* Deep Debug Modal */}
+      <DeepDebugModal
+        url={selectedUrlForDeepDebug || ''}
+        open={!!selectedUrlForDeepDebug}
+        onOpenChange={(open) => {
+          if (!open) setSelectedUrlForDeepDebug(null);
+        }}
+      />
     </div>
   );
 }
