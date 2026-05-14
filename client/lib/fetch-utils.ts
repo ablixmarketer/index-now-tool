@@ -1,12 +1,58 @@
 // Get API base URL from environment or use relative URLs
 const getApiBaseUrl = (): string => {
-  // In production (Netlify), use the Render backend
-  // In development, use relative paths (Vite proxy)
-  if (import.meta.env.PROD) {
-    return import.meta.env.VITE_API_BASE_URL || 'https://index-now-tool.onrender.com';
+  // Check if we have an explicit API URL
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl) {
+    return envUrl;
   }
-  return ''; // Relative URLs for dev (Vite proxy)
+
+  // In production (Netlify), use the Render backend
+  if (import.meta.env.PROD) {
+    return 'https://index-now-tool.onrender.com';
+  }
+
+  // In development, try localhost first, but fall back to Render if unavailable
+  // We'll detect this dynamically
+  return '';
 };
+
+// Retry logic for failed requests with fallback to Render backend
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  retries: number = 3,
+  isFallback: boolean = false
+): Promise<Response> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`[API] Attempt ${attempt}/${retries} to fetch ${url}`);
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        }
+      });
+      return response;
+    } catch (error) {
+      console.warn(`[API] Attempt ${attempt} failed:`, error);
+
+      // If localhost failed and we haven't tried Render yet, retry with Render
+      if (!isFallback && url.includes('http://localhost:3001')) {
+        console.log(`[API] Localhost unavailable, falling back to Render backend`);
+        const renderUrl = url.replace('http://localhost:3001', 'https://index-now-tool.onrender.com');
+        return fetchWithRetry(renderUrl, options, retries, true);
+      }
+
+      if (attempt === retries) {
+        throw error;
+      }
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 500));
+    }
+  }
+  throw new Error('Failed after all retry attempts');
+}
 
 // Utility function for robust API calls with proper error handling
 export async function apiCall<T = any>(
@@ -14,14 +60,16 @@ export async function apiCall<T = any>(
   options: RequestInit = {}
 ): Promise<T> {
   try {
-    const apiUrl = getApiBaseUrl() + url;
-    const response = await fetch(apiUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
-      ...options
-    });
+    let apiUrl = getApiBaseUrl() + url;
+
+    // In development, try localhost first
+    if (!import.meta.env.PROD && !apiUrl.startsWith('http')) {
+      apiUrl = 'http://localhost:3001' + url;
+    }
+
+    console.log(`[API] Making request to: ${apiUrl}`);
+
+    const response = await fetchWithRetry(apiUrl, options);
 
     let data: any;
     const contentType = response.headers.get('content-type');
@@ -44,16 +92,25 @@ export async function apiCall<T = any>(
     }
 
     if (!response.ok) {
-      throw new Error(
-        data?.message ||
-        data?.error ||
-        `HTTP ${response.status}: ${response.statusText}`
-      );
+      const errorMsg = data?.message || data?.error || `HTTP ${response.status}: ${response.statusText}`;
+      console.error(`[API] Request failed:`, errorMsg, data);
+      throw new Error(errorMsg);
     }
 
+    console.log(`[API] Request successful to ${url}`);
     return data;
   } catch (error) {
     // Network or other errors
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[API] Error:`, errorMsg);
+
+    // More helpful error messages
+    if (errorMsg.includes('Failed to fetch')) {
+      throw new Error(
+        'Network error: Cannot reach the API server. Check your internet connection and that the backend is running.'
+      );
+    }
+
     if (error instanceof Error) {
       throw error;
     }
