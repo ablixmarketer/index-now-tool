@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -8,6 +8,7 @@ import { type PingResult, getStatusBadgeVariant } from '@shared/indexnow';
 import { DebugOutputPanel } from '@/components/DebugOutputPanel';
 import { DeepDebugModal } from '@/components/DeepDebugModal';
 import { debugLogger } from '@/lib/debug-logger';
+import { debugStorage } from '@/lib/debug-storage';
 
 interface ResultsTableProps {
   results: PingResult[];
@@ -17,6 +18,30 @@ interface ResultsTableProps {
 export function ResultsTable({ results, debugModeEnabled = false }: ResultsTableProps) {
   const [expandedUrls, setExpandedUrls] = useState<Set<string>>(new Set());
   const [selectedUrlForDeepDebug, setSelectedUrlForDeepDebug] = useState<string | null>(null);
+  const [urlsWithDebug, setUrlsWithDebug] = useState<Set<string>>(new Set());
+
+  // Load debug info from storage on mount
+  useEffect(() => {
+    if (!debugModeEnabled) return;
+
+    const loadDebugInfo = async () => {
+      const urls = new Set<string>();
+      for (const result of results) {
+        try {
+          const report = await debugStorage.getReport(result.url);
+          if (report) {
+            urls.add(result.url);
+            console.log(`[RESULTS TABLE] Found debug report for ${result.url}`);
+          }
+        } catch (err) {
+          console.warn(`[RESULTS TABLE] Error checking debug for ${result.url}:`, err);
+        }
+      }
+      setUrlsWithDebug(urls);
+    };
+
+    loadDebugInfo();
+  }, [results, debugModeEnabled]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -24,8 +49,7 @@ export function ResultsTable({ results, debugModeEnabled = false }: ResultsTable
 
   // Check if there's debug info for a URL
   const hasDebugInfo = (url: string) => {
-    const logs = debugLogger.getUrlDebugLogs(url);
-    return Object.keys(logs).length > 0;
+    return urlsWithDebug.has(url);
   };
 
   const toggleUrlExpand = (url: string) => {
