@@ -400,7 +400,7 @@ export const handleBulkBingContentSubmission: RequestHandler = async (req, res) 
             const contentChanged = contentHash !== previousHash;
 
             if (!contentChanged && previousHash) {
-              return {
+              const skippedResult: BingSubmissionResult = {
                 url,
                 engine: 'bing-content' as const,
                 status: 304,
@@ -408,7 +408,55 @@ export const handleBulkBingContentSubmission: RequestHandler = async (req, res) 
                 latency: 0,
                 attempts: 1,
                 final: true,
-              } as BingSubmissionResult;
+              };
+
+              if (debug) {
+                skippedResult.debug = {
+                  debugModeEnabled: true,
+                  contentExtraction: {
+                    sourceTag: extracted.sourceTag,
+                    characterCount: extracted.contentLength,
+                    sanitizedPreview: sanitizeForDebug(extracted.mainContent),
+                    fullContent: extracted.mainContent,
+                    isValid: extracted.contentLength > 100,
+                    isEmpty: extracted.contentLength === 0,
+                    isHeaderFooterOnly: false,
+                    warnings: extracted.warnings,
+                  },
+                  metadata: {
+                    title: extracted.metadata.title,
+                    description: extracted.metadata.description,
+                    canonical: extracted.metadata.canonical,
+                    robots: extracted.metadata.robots,
+                    publishDate: extracted.metadata.publishDate,
+                    lastModified: extracted.metadata.lastModified,
+                  },
+                  schema: {
+                    found: extracted.schemas.length > 0,
+                    count: extracted.schemas.length,
+                    types: extracted.schemas.map((s) => (s['@type'] as string) || 'Unknown'),
+                    schemas: extracted.schemas.length > 0 ? extracted.schemas : [],
+                    isValid: extracted.schemas.length > 0,
+                    validationErrors: extracted.schemas.length === 0 ? ['No schema.org markup found'] : [],
+                    sentToBing: extracted.schemas.length > 0,
+                  },
+                  rendering: {
+                    status: 'UNCHANGED',
+                    diagnosis: 'Content unchanged - not re-submitted',
+                    htmlSize: fetched.html.length,
+                    hasJsonLdScripts: /application\/ld\+json/i.test(fetched.html),
+                    contextDeclarationsFound: (fetched.html.match(/"?@context"?\s*:\s*["']https?:\/\/schema\.org/gi) || []).length,
+                    schemaOrgMentions: (fetched.html.match(/schema\.org/gi) || []).length,
+                    nextJsFramework: fetched.html.includes('_next') || fetched.html.includes('__NEXT'),
+                    extractedSchemas: extracted.schemas.length,
+                  },
+                  contentHash,
+                  previousHash,
+                  contentChanged,
+                };
+              }
+
+              return skippedResult;
             }
 
             // Submit to Bing
@@ -421,9 +469,66 @@ export const handleBulkBingContentSubmission: RequestHandler = async (req, res) 
             }
 
             if (debug) {
+              // Add rendering diagnostics
+              const htmlSize = fetched.html.length;
+              const hasJsonLd = /application\/ld\+json/i.test(fetched.html);
+              const contextCount = (fetched.html.match(/"?@context"?\s*:\s*["']https?:\/\/schema\.org/gi) || []).length;
+              const schemaOrgCount = (fetched.html.match(/schema\.org/gi) || []).length;
+              const hasNextJs = fetched.html.includes('_next') || fetched.html.includes('__NEXT');
+
+              let renderingStatus = 'UNKNOWN';
+              let renderingDiagnosis = 'Unable to determine rendering method';
+
+              if (schemaOrgCount > 0 && !hasJsonLd && extracted.schemas.length === 0) {
+                renderingStatus = 'LIKELY CLIENT-SIDE';
+                renderingDiagnosis = 'schema.org found in text but NO JSON-LD scripts - schemas injected via JavaScript';
+              } else if (hasJsonLd && extracted.schemas.length > 0) {
+                renderingStatus = 'SERVER-SIDE';
+                renderingDiagnosis = 'Schemas found in initial server response';
+              } else if (schemaOrgCount === 0 && extracted.schemas.length === 0) {
+                renderingStatus = 'NO SCHEMAS';
+                renderingDiagnosis = 'No schema.org markup detected in any form';
+              }
+
               submissionResult.debug = {
-                contentLength: extracted.contentLength,
-                schemaCount: extracted.schemas.length,
+                debugModeEnabled: true,
+                contentExtraction: {
+                  sourceTag: extracted.sourceTag,
+                  characterCount: extracted.contentLength,
+                  sanitizedPreview: sanitizeForDebug(extracted.mainContent),
+                  fullContent: extracted.mainContent,
+                  isValid: extracted.contentLength > 100,
+                  isEmpty: extracted.contentLength === 0,
+                  isHeaderFooterOnly: false,
+                  warnings: extracted.warnings,
+                },
+                metadata: {
+                  title: extracted.metadata.title,
+                  description: extracted.metadata.description,
+                  canonical: extracted.metadata.canonical,
+                  robots: extracted.metadata.robots,
+                  publishDate: extracted.metadata.publishDate,
+                  lastModified: extracted.metadata.lastModified,
+                },
+                schema: {
+                  found: extracted.schemas.length > 0,
+                  count: extracted.schemas.length,
+                  types: extracted.schemas.map((s) => (s['@type'] as string) || 'Unknown'),
+                  schemas: extracted.schemas.length > 0 ? extracted.schemas : [],
+                  isValid: extracted.schemas.length > 0,
+                  validationErrors: extracted.schemas.length === 0 ? ['No schema.org markup found'] : [],
+                  sentToBing: extracted.schemas.length > 0,
+                },
+                rendering: {
+                  status: renderingStatus,
+                  diagnosis: renderingDiagnosis,
+                  htmlSize: htmlSize,
+                  hasJsonLdScripts: hasJsonLd,
+                  contextDeclarationsFound: contextCount,
+                  schemaOrgMentions: schemaOrgCount,
+                  nextJsFramework: hasNextJs,
+                  extractedSchemas: extracted.schemas.length,
+                },
                 contentHash,
                 previousHash,
                 contentChanged,
@@ -432,6 +537,7 @@ export const handleBulkBingContentSubmission: RequestHandler = async (req, res) 
 
             return submissionResult;
           } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
             return {
               url,
               engine: 'bing-content' as const,
@@ -440,7 +546,7 @@ export const handleBulkBingContentSubmission: RequestHandler = async (req, res) 
               latency: 0,
               attempts: 1,
               final: true,
-              error: error instanceof Error ? error.message : 'Unknown error',
+              error: errorMessage,
             } as BingSubmissionResult;
           }
         })
