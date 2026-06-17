@@ -49,14 +49,25 @@ export class DebugReportBuilder {
       warnings: debugInfo.contentExtraction?.warnings || [],
     };
 
-    // Determine verdict status
-    const urlStatus = engine === 'bing-url'
-      ? (result.status === 200 || result.status === 202 ? 'PASS' : 'FAIL')
-      : 'SKIPPED' as const;
+    // Determine verdict status based on engine and HTTP status
+    let urlStatus: 'PASS' | 'FAIL' | 'SKIPPED';
+    let contentStatus: 'PASS' | 'FAIL' | 'SKIPPED';
 
-    const contentStatus = engine === 'bing-content'
-      ? (result.status === 200 || result.status === 202 ? 'PASS' : result.status === 304 ? 'SKIPPED' : 'FAIL')
-      : 'SKIPPED' as const;
+    if (engine === 'bing-url') {
+      urlStatus = (result.status === 200 || result.status === 202) ? 'PASS' : 'FAIL';
+      contentStatus = 'SKIPPED';
+    } else if (engine === 'bing-content') {
+      urlStatus = 'SKIPPED';
+      contentStatus = (result.status === 200 || result.status === 202)
+        ? 'PASS'
+        : result.status === 304
+          ? 'SKIPPED'
+          : 'FAIL';
+    } else {
+      // For indexnow and bing engines, mark as SKIPPED (no detailed submission data)
+      urlStatus = 'SKIPPED';
+      contentStatus = 'SKIPPED';
+    }
 
     const schemaStatus = schema.found
       ? (schema.isValid ? 'PASS' : 'FAIL')
