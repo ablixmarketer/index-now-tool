@@ -376,13 +376,16 @@ export const handleBulkBingContentSubmission: RequestHandler = async (req, res) 
 
     const results: BingSubmissionResult[] = [];
 
+    console.log(`[BULK CONTENT] Received request with debug=${debug}`);
+    console.log(`[BULK CONTENT] Selected engines: ${selectedEngines.join(', ')}`);
+
     // Only process if bing-content is selected
     if (!selectedEngines.includes('bing-content')) {
       return res.json({ results: [], summary: { total: 0, succeeded: 0, failed: 0, rateLimited: 0 } });
     }
 
     if (debug) {
-      console.log(`[DEBUG] Starting bulk content submission for ${urls.length} URLs`);
+      console.log(`[DEBUG] Starting bulk content submission for ${urls.length} URLs with debug enabled`);
     }
 
     // Process URLs with concurrency control (max 3 parallel crawls)
@@ -469,6 +472,8 @@ export const handleBulkBingContentSubmission: RequestHandler = async (req, res) 
             }
 
             if (debug) {
+              console.log(`[BULK DEBUG] Adding full debug data for ${url}`);
+
               // Add rendering diagnostics
               const htmlSize = fetched.html.length;
               const hasJsonLd = /application\/ld\+json/i.test(fetched.html);
@@ -490,6 +495,7 @@ export const handleBulkBingContentSubmission: RequestHandler = async (req, res) 
                 renderingDiagnosis = 'No schema.org markup detected in any form';
               }
 
+              console.log(`[BULK DEBUG] Setting debug object with extraction for ${url}`);
               submissionResult.debug = {
                 debugModeEnabled: true,
                 contentExtraction: {
