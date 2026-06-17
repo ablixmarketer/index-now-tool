@@ -116,10 +116,10 @@ export function BulkPingButton({
               // Use Bing Content Submission API
               console.log(`[BULK PING] Using Bing Content Submission API`);
               try {
-                batchResults = await bingApi.submitContentBulk({
+                batchResults = await bingApi.submitContentBulkWithDebug({
                   urls: urlBatch,
                   engines: [engineId]
-                });
+                }, debugModeEnabled);
               } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : String(error);
                 if (errorMsg.includes('Service not available') || errorMsg.includes('501')) {
@@ -143,10 +143,10 @@ export function BulkPingButton({
             } else if (engineId === 'bing-url') {
               // Use Bing URL Submission API
               console.log(`[BULK PING] Using Bing URL Submission API`);
-              batchResults = await bingApi.submitUrlBulk({
+              batchResults = await bingApi.submitUrlBulkWithDebug({
                 urls: urlBatch,
                 engines: [engineId]
-              });
+              }, debugModeEnabled);
             } else {
               // Use IndexNow API for indexnow and bing
               console.log(`[BULK PING] Using IndexNow API`);
