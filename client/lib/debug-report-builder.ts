@@ -73,12 +73,15 @@ export class DebugReportBuilder {
       ? (schema.isValid ? 'PASS' : 'FAIL')
       : 'SKIPPED' as const;
 
-    const overallStatus =
-      (urlStatus === 'PASS' || contentStatus === 'PASS')
-        ? 'WORKING'
-        : (urlStatus === 'FAIL' || contentStatus === 'FAIL')
-          ? 'NEEDS_FIX'
-          : 'PARTIAL' as const;
+    // Overall status: WORKING if any key submission passed, NEEDS_FIX if any failed, else PARTIAL
+    const hasPass = urlStatus === 'PASS' || contentStatus === 'PASS' || schemaStatus === 'PASS';
+    const hasFail = urlStatus === 'FAIL' || contentStatus === 'FAIL' || schemaStatus === 'FAIL';
+
+    const overallStatus = hasPass
+      ? 'WORKING'
+      : hasFail
+        ? 'NEEDS_FIX'
+        : 'PARTIAL' as const;
 
     // Build validation checks
     const validations = this.buildValidationChecks(metadata, content, schema);
