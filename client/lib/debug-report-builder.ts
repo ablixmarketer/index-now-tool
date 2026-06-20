@@ -83,6 +83,15 @@ export class DebugReportBuilder {
         ? 'NEEDS_FIX'
         : 'PARTIAL' as const;
 
+    // DEBUG: Log verdict calculation
+    console.log(`[DEBUG REPORT BUILDER] URL: ${result.url}`);
+    console.log(`  Engine: ${engine}`);
+    console.log(`  Status: ${result.status}`);
+    console.log(`  urlStatus: ${urlStatus}, contentStatus: ${contentStatus}, schemaStatus: ${schemaStatus}`);
+    console.log(`  hasPass: ${hasPass} (url=${urlStatus === 'PASS'} || content=${contentStatus === 'PASS'} || schema=${schemaStatus === 'PASS'})`);
+    console.log(`  hasFail: ${hasFail}`);
+    console.log(`  Final overallStatus: ${overallStatus}`);
+
     // Build validation checks
     const validations = this.buildValidationChecks(metadata, content, schema);
 
