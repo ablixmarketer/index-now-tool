@@ -15,9 +15,14 @@ interface ResultsTableProps {
   debugModeEnabled?: boolean;
 }
 
+interface DeepDebugSelection {
+  url: string;
+  engine: string;
+}
+
 export function ResultsTable({ results, debugModeEnabled = false }: ResultsTableProps) {
   const [expandedUrls, setExpandedUrls] = useState<Set<string>>(new Set());
-  const [selectedUrlForDeepDebug, setSelectedUrlForDeepDebug] = useState<string | null>(null);
+  const [selectedDebug, setSelectedDebug] = useState<DeepDebugSelection | null>(null);
   const [urlsWithDebug, setUrlsWithDebug] = useState<Set<string>>(new Set());
 
   // Load debug info from storage on mount
@@ -93,7 +98,13 @@ export function ResultsTable({ results, debugModeEnabled = false }: ResultsTable
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setSelectedUrlForDeepDebug(url)}
+                      onClick={() => {
+                        // Click the first engine's deep debug button
+                        const firstResult = urlResults[0];
+                        if (firstResult) {
+                          setSelectedDebug({ url, engine: firstResult.engine });
+                        }
+                      }}
                       className="text-xs gap-1 hover:bg-blue-100 dark:hover:bg-blue-900/30"
                       title="Deep debug report"
                     >
@@ -184,7 +195,7 @@ export function ResultsTable({ results, debugModeEnabled = false }: ResultsTable
             {/* Debug Output Panel - Expandable */}
             {hasDebug && isExpanded && (
               <div className="border-t bg-amber-50 dark:bg-amber-950/30 p-4">
-                <DebugOutputPanel url={url} />
+                <DebugOutputPanel url={url} engine={urlResults[0]?.engine} />
               </div>
             )}
           </div>
@@ -192,13 +203,16 @@ export function ResultsTable({ results, debugModeEnabled = false }: ResultsTable
       })}
 
       {/* Deep Debug Modal */}
-      <DeepDebugModal
-        url={selectedUrlForDeepDebug || ''}
-        open={!!selectedUrlForDeepDebug}
-        onOpenChange={(open) => {
-          if (!open) setSelectedUrlForDeepDebug(null);
-        }}
-      />
+      {selectedDebug && (
+        <DeepDebugModal
+          url={selectedDebug.url}
+          engine={selectedDebug.engine}
+          open={!!selectedDebug}
+          onOpenChange={(open) => {
+            if (!open) setSelectedDebug(null);
+          }}
+        />
+      )}
     </div>
   );
 }

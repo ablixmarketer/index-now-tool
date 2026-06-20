@@ -22,11 +22,12 @@ import { BulkDebugReport, debugStorage } from '@/lib/debug-storage';
 
 interface DeepDebugModalProps {
   url: string;
+  engine: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function DeepDebugModal({ url, open, onOpenChange }: DeepDebugModalProps) {
+export function DeepDebugModal({ url, engine, open, onOpenChange }: DeepDebugModalProps) {
   const [report, setReport] = useState<BulkDebugReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,12 +40,13 @@ export function DeepDebugModal({ url, open, onOpenChange }: DeepDebugModalProps)
       setLoading(true);
       setError(null);
       try {
-        console.log(`[BULK DEBUG] Loading detailed report for ${url}`);
-        const data = await debugStorage.getReport(url);
+        console.log(`[BULK DEBUG] Loading detailed report for ${url} (engine: ${engine})`);
+        const data = await debugStorage.getReport(url, engine);
         if (!data) {
-          setError('Debug report not found for this URL');
+          setError(`Debug report not found for ${engine} engine`);
         } else {
           setReport(data);
+          console.log(`[BULK DEBUG] Loaded report for ${engine}: verdict = ${data.verdict.overall}`);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load report');
@@ -54,7 +56,7 @@ export function DeepDebugModal({ url, open, onOpenChange }: DeepDebugModalProps)
     };
 
     loadReport();
-  }, [url, open]);
+  }, [url, engine, open]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);

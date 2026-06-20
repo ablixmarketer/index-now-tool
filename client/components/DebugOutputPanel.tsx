@@ -17,9 +17,10 @@ import {
 
 interface DebugOutputPanelProps {
   url: string;
+  engine?: string;
 }
 
-export function DebugOutputPanel({ url }: DebugOutputPanelProps) {
+export function DebugOutputPanel({ url, engine }: DebugOutputPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<
     'verdict' | 'url-submission' | 'content' | 'metadata' | 'schema' | 'error' | 'full'
