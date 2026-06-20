@@ -110,9 +110,11 @@ class DebugStorage {
     const summary = { ...report };
     delete (summary as any).htmlSnapshot;
 
-    const key = `debug_${report.url}`;
+    // Use composite key: url + engine to prevent overwrites
+    const key = `debug_${report.url}__${report.engine}`;
     try {
       localStorage.setItem(key, JSON.stringify(summary));
+      console.log(`[DEBUG STORAGE] Saved report for ${report.url} (${report.engine})`);
     } catch (e) {
       console.warn('[DEBUG STORAGE] localStorage quota exceeded');
     }
@@ -123,7 +125,9 @@ class DebugStorage {
         try {
           const transaction = this.db!.transaction([this.storeName], 'readwrite');
           const store = transaction.objectStore(this.storeName);
-          const request = store.put(report);
+          // Use composite key in IndexedDB too
+          const reportWithKey = { ...report, storageKey: key };
+          const request = store.put(reportWithKey);
 
           request.onsuccess = () => resolve();
           request.onerror = () => {
@@ -138,29 +142,50 @@ class DebugStorage {
     }
   }
 
-  // Get debug report for a URL
-  async getReport(url: string): Promise<BulkDebugReport | null> {
+  // Get debug report for a URL (returns the latest engine's report, or can specify engine)
+  async getReport(url: string, engine?: string): Promise<BulkDebugReport | null> {
     await this.init();
 
-    // Try IndexedDB first (has full data with HTML)
-    if (this.db) {
-      const idbReport = await this.getFromIndexedDB(url);
-      if (idbReport) return idbReport;
+    if (engine) {
+      // Get report for specific engine
+      const key = `debug_${url}__${engine}`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          console.error('[DEBUG STORAGE] Failed to parse stored report');
+          return null;
+        }
+      }
+      return null;
     }
 
-    // Fall back to localStorage
-    const key = `debug_${url}`;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch (e) {
-        console.error('[DEBUG STORAGE] Failed to parse stored report');
-        return null;
+    // If no engine specified, return the LAST stored engine's report for this URL
+    // Check localStorage for the latest report by looking for all keys with this URL
+    let latestReport: BulkDebugReport | null = null;
+    let latestTime = 0;
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(`debug_${url}__`)) {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          try {
+            const report = JSON.parse(stored) as BulkDebugReport;
+            const reportTime = new Date(report.timestamp).getTime();
+            if (reportTime > latestTime) {
+              latestTime = reportTime;
+              latestReport = report;
+            }
+          } catch (e) {
+            console.warn('[DEBUG STORAGE] Failed to parse stored report from key:', key);
+          }
+        }
       }
     }
 
-    return null;
+    return latestReport;
   }
 
   // Internal: Get from IndexedDB
