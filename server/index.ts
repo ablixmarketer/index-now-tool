@@ -47,6 +47,17 @@ export async function createApp() {
     res.json({ message: "pong", timestamp: new Date().toISOString() });
   });
 
+  // Site configuration endpoint
+  app.get("/api/config", (req, res) => {
+    const config = {
+      domain: process.env.INDEXNOW_KEY_LOCATION?.split("//")[1]?.split("/")[0] || "",
+      indexNowKey: process.env.INDEXNOW_KEY || "",
+      indexNowKeyLocation: process.env.INDEXNOW_KEY_LOCATION || "",
+      bingApiKey: process.env.BING_SUBMISSION_API_KEY || "",
+    };
+    res.json(config);
+  });
+
   // Existing demo route
   app.get("/api/demo", handleDemo);
 
