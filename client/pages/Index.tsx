@@ -15,6 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { DebugModeToggle } from "@/components/DebugModeToggle";
+import { SiteSelector } from "@/components/SiteSelector";
 import { SitemapScanner } from "@/components/SitemapScanner";
 import { SingleUrlPing } from "@/components/SingleUrlPing";
 import { BulkPingButton } from "@/components/BulkPingButton";
@@ -38,6 +39,8 @@ import {
   Search,
 } from "lucide-react";
 import { type PingResult, type SitemapUrl } from "@shared/indexnow";
+import { siteManager } from "@/lib/site-manager";
+import type { SiteConfig } from "@shared/site-config";
 
 export default function Index() {
   const [scannedUrls, setScannedUrls] = useState<SitemapUrl[]>([]);
@@ -47,6 +50,17 @@ export default function Index() {
   const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("sitemap");
   const [debugModeEnabled, setDebugModeEnabled] = useState(debugLogger.isDebugModeEnabled());
+  const [activeSite, setActiveSite] = useState<SiteConfig | null>(null);
+
+  useEffect(() => {
+    // Initialize site manager and load active site
+    const initSites = async () => {
+      await siteManager.init();
+      const site = await siteManager.getActiveSite();
+      setActiveSite(site);
+    };
+    initSites();
+  }, []);
 
   const handleScanComplete = (urls: SitemapUrl[]) => {
     console.log("📋 Scan completed with URLs:", urls.length);
@@ -96,6 +110,7 @@ export default function Index() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
+            <SiteSelector onSiteChange={setActiveSite} />
             <Badge variant="outline" className="hidden sm:flex">
               <Activity className="w-3 h-3 mr-1" />
               Ready
@@ -273,6 +288,7 @@ export default function Index() {
                           onPingComplete={handlePingComplete}
                           disabled={isScanning}
                           debugModeEnabled={debugModeEnabled}
+                          activeSite={activeSite}
                         />
                       ) : (
                         <div className="text-center py-8">

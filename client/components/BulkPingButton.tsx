@@ -13,6 +13,7 @@ import { indexnowApi, bingApi } from '@/lib/fetch-utils';
 import { debugLogger } from '@/lib/debug-logger';
 import { debugStorage } from '@/lib/debug-storage';
 import { DebugReportBuilder } from '@/lib/debug-report-builder';
+import type { SiteConfig } from '@shared/site-config';
 
 interface BulkPingButtonProps {
   selectedUrls: string[];
@@ -21,6 +22,7 @@ interface BulkPingButtonProps {
   onPingComplete: (results: PingResult[]) => void;
   disabled?: boolean;
   debugModeEnabled?: boolean;
+  activeSite?: SiteConfig | null;
 }
 
 export function BulkPingButton({
@@ -29,7 +31,8 @@ export function BulkPingButton({
   onPingProgress,
   onPingComplete,
   disabled,
-  debugModeEnabled = false
+  debugModeEnabled = false,
+  activeSite
 }: BulkPingButtonProps) {
   // Default: all search engines selected
   const [selectedEngines, setSelectedEngines] = useState<EngineId[]>(['indexnow', 'bing', 'bing-url', 'bing-content']);
@@ -118,7 +121,8 @@ export function BulkPingButton({
               try {
                 batchResults = await bingApi.submitContentBulkWithDebug({
                   urls: urlBatch,
-                  engines: [engineId]
+                  engines: [engineId],
+                  siteId: activeSite?.id
                 }, debugModeEnabled);
               } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : String(error);
@@ -145,7 +149,8 @@ export function BulkPingButton({
               console.log(`[BULK PING] Using Bing URL Submission API`);
               batchResults = await bingApi.submitUrlBulkWithDebug({
                 urls: urlBatch,
-                engines: [engineId]
+                engines: [engineId],
+                siteId: activeSite?.id
               }, debugModeEnabled);
             } else {
               // Use IndexNow API for indexnow and bing
@@ -153,7 +158,8 @@ export function BulkPingButton({
               batchResults = await indexnowApi.bulk({
                 urls: urlBatch,
                 engines: [engineId],
-                mode: 'update'
+                mode: 'update',
+                siteId: activeSite?.id
               });
             }
 
