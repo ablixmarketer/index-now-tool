@@ -86,8 +86,8 @@ export async function createApp() {
   if (isProduction) {
     // Production: serve compiled SPA from dist/spa
     // __dirname points to dist/server/ after build
-    // So we need to go up 2 levels to reach dist/, then into spa/
-    const spaPath = path.resolve(__dirname, '../../spa');
+    // So we need to go up 1 level to reach dist/, then into spa/
+    const spaPath = path.resolve(__dirname, '../spa');
     const indexPath = path.join(spaPath, 'index.html');
 
     console.log('[SERVER] Production mode');
