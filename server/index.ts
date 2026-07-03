@@ -80,12 +80,16 @@ export async function createApp() {
   const isProduction = process.env.NODE_ENV === "production";
 
   if (isProduction) {
-    // In Netlify Functions, the SPA is served by Netlify's static hosting
-    // The function only handles API requests
-    // Return 404 for non-API requests (Netlify will serve static files)
-    app.use((req, res) => {
-      if (!req.path.startsWith("/api/")) {
-        res.status(404).json({ error: "Not found" });
+    // Production: serve compiled SPA from dist/spa
+    // This works for Render, Railway, Vercel, etc.
+    app.use(express.static(path.join(process.cwd(), 'dist', 'spa')));
+
+    // SPA fallback: serve index.html for all non-API routes
+    app.use((req, res, next) => {
+      if (!req.path.startsWith('/api/')) {
+        res.sendFile(path.join(process.cwd(), 'dist', 'spa', 'index.html'));
+      } else {
+        next();
       }
     });
   } else {

@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: index-now-tool
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: INDEXNOW_KEY
+        scope: build
+      - key: INDEXNOW_KEY_LOCATION
+        scope: build
+      - key: BING_SUBMISSION_API_KEY
+        scope: build
