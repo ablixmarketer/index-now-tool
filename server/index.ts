@@ -3,7 +3,11 @@ import { readFileSync } from "fs";
 import path from "path";
 import cors from "cors";
 import "dotenv/config";
+import { fileURLToPath } from "url";
 import { siteMiddleware } from "./middleware/site-middleware";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Import API handlers
 import { handleDemo } from "./routes/demo";
@@ -81,13 +85,39 @@ export async function createApp() {
 
   if (isProduction) {
     // Production: serve compiled SPA from dist/spa
-    // This works for Render, Railway, Vercel, etc.
-    app.use(express.static(path.join(process.cwd(), 'dist', 'spa')));
+    // __dirname points to dist/server/ after build
+    // So we need to go up 2 levels to reach dist/, then into spa/
+    const spaPath = path.resolve(__dirname, '../../spa');
+    const indexPath = path.join(spaPath, 'index.html');
+
+    console.log('[SERVER] Production mode');
+    console.log('[SERVER] __dirname:', __dirname);
+    console.log('[SERVER] SPA path:', spaPath);
+    console.log('[SERVER] Index.html path:', indexPath);
+
+    // Serve static files with caching headers
+    app.use(express.static(spaPath, {
+      maxAge: '1d',
+      etag: true,
+    }));
 
     // SPA fallback: serve index.html for all non-API routes
     app.use((req, res, next) => {
       if (!req.path.startsWith('/api/')) {
-        res.sendFile(path.join(process.cwd(), 'dist', 'spa', 'index.html'));
+        console.log(`[SERVER] Serving SPA for ${req.path}`);
+        res.sendFile(indexPath, (err) => {
+          if (err) {
+            console.error('[SERVER] Error serving index.html:', {
+              error: err.message,
+              code: err.code,
+              path: indexPath,
+              requiredPath: req.path,
+            });
+            if (!res.headersSent) {
+              res.status(500).json({ error: 'Internal Server Error' });
+            }
+          }
+        });
       } else {
         next();
       }
