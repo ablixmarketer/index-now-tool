@@ -18,20 +18,34 @@ class SiteManager {
   async init(): Promise<void> {
     if (this.initialized) return;
 
-    // Load from localStorage
+    // ALWAYS load environment config FIRST
+    // This ensures we get the latest env vars from the server
+    await this.loadFromEnvironment();
+
+    // Then load any additional sites from localStorage (user-added sites)
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        this.config = JSON.parse(stored);
-        console.log('[SITE MANAGER] Loaded config from localStorage:', Object.keys(this.config.sites).length, 'sites');
+        const storedConfig = JSON.parse(stored);
+        // Merge stored sites (but don't override default if env changed)
+        if (storedConfig.sites) {
+          for (const [siteId, site] of Object.entries(storedConfig.sites)) {
+            // Skip 'default' - we always get it fresh from environment
+            if (siteId !== 'default') {
+              this.config.sites[siteId] = site as any;
+            }
+          }
+        }
+        if (storedConfig.currentSiteId && storedConfig.currentSiteId !== 'default') {
+          this.config.currentSiteId = storedConfig.currentSiteId;
+        }
+        console.log('[SITE MANAGER] Merged localStorage config with environment');
       }
     } catch (e) {
       console.warn('[SITE MANAGER] Failed to load config from localStorage');
     }
 
-    // Load initial config from environment
-    await this.loadFromEnvironment();
-
+    this.persist();
     this.initialized = true;
   }
 
