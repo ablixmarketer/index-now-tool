@@ -20,17 +20,16 @@ import {
   logSubmissionResponse,
   generateSimpleHash,
 } from '../services/bing-submission/debug-instrumenter';
+import { SiteRequest } from '../middleware/site-middleware';
 
 // Rate limiter for concurrent content crawls
 const limit = pLimit(3);
-
-// Get API key from environment
-const BING_API_KEY = process.env.BING_SUBMISSION_API_KEY;
 
 // Store content hashes for change detection (in-memory, can be replaced with DB)
 const contentHashStore = new Map<string, string>();
 
 export const handleSingleBingContentSubmission: RequestHandler = async (req, res) => {
+  const siteReq = req as SiteRequest;
   try {
     // Handle Buffer body from serverless-http
     let bodyData = req.body;
@@ -55,8 +54,9 @@ export const handleSingleBingContentSubmission: RequestHandler = async (req, res
       });
     }
 
-    // Check API key
-    if (!BING_API_KEY) {
+    // Get API key from request context (set by siteMiddleware from env)
+    const bingApiKey = siteReq.siteConfig?.bingApiKey;
+    if (!bingApiKey) {
       return res.status(400).json({
         error: 'Bing API not configured',
         message: 'BING_SUBMISSION_API_KEY environment variable is required',
@@ -209,7 +209,7 @@ export const handleSingleBingContentSubmission: RequestHandler = async (req, res
         }
 
         // Step 5: Submit to Bing
-        const submissionResult = await submitContentToBingAPI(bingPayload, BING_API_KEY);
+        const submissionResult = await submitContentToBingAPI(bingPayload, bingApiKey);
 
         // Store hash after successful submission
         if (submissionResult.status === 200 || submissionResult.status === 202) {
@@ -348,6 +348,7 @@ export const handleSingleBingContentSubmission: RequestHandler = async (req, res
 };
 
 export const handleBulkBingContentSubmission: RequestHandler = async (req, res) => {
+  const siteReq = req as SiteRequest;
   try {
     // Handle Buffer body from serverless-http
     let bodyData = req.body;
@@ -364,8 +365,9 @@ export const handleBulkBingContentSubmission: RequestHandler = async (req, res) 
       });
     }
 
-    // Check API key
-    if (!BING_API_KEY) {
+    // Get API key from request context (set by siteMiddleware from env)
+    const bingApiKey = siteReq.siteConfig?.bingApiKey;
+    if (!bingApiKey) {
       return res.status(400).json({
         error: 'Bing API not configured',
         message: 'BING_SUBMISSION_API_KEY environment variable is required',
@@ -464,7 +466,7 @@ export const handleBulkBingContentSubmission: RequestHandler = async (req, res) 
 
             // Submit to Bing
             const bingPayload = convertToBingPayload(extracted);
-            const submissionResult = await submitContentToBingAPI(bingPayload, BING_API_KEY);
+            const submissionResult = await submitContentToBingAPI(bingPayload, bingApiKey);
 
             // Store hash after successful submission
             if (submissionResult.status === 200 || submissionResult.status === 202) {

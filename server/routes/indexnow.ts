@@ -8,17 +8,16 @@ import {
   statusToMeaning,
   engines,
 } from "../../shared/indexnow";
+import { SiteRequest } from "../middleware/site-middleware";
 
-// Environment variables
-const INDEXNOW_KEY =
-  process.env.INDEXNOW_KEY || "558e9f294e5246d2993e4eaed06e54b4";
-const INDEXNOW_KEY_LOCATION = process.env.INDEXNOW_KEY_LOCATION;
+// IndexNow endpoint default
 const INDEXNOW_ENDPOINT =
   process.env.INDEXNOW_ENDPOINT || "https://api.indexnow.org/indexnow";
 
 const limit = pLimit(5);
 
 export const handleBulkPing: RequestHandler = async (req, res) => {
+  const siteReq = req as SiteRequest;
   try {
     // Handle Buffer body from serverless-http
     let bodyData = req.body;
@@ -37,13 +36,17 @@ export const handleBulkPing: RequestHandler = async (req, res) => {
 
     const { urls, engines: selectedEngines, mode } = validation.data;
 
+    // Get keys from request context (set by siteMiddleware from env)
+    const indexNowKey = siteReq.siteConfig?.indexNowKey;
+    const indexNowKeyLocation = siteReq.siteConfig?.indexNowKeyLocation;
+
     console.log('[INDEXNOW BULK] Request received');
     console.log(`[INDEXNOW BULK] URLs count: ${urls.length}`);
     console.log(`[INDEXNOW BULK] Selected engines: ${selectedEngines.join(', ')}`);
     console.log(`[INDEXNOW BULK] Mode: ${mode}`);
     console.log(`[INDEXNOW BULK] First 3 URLs:`, urls.slice(0, 3));
 
-    if (!INDEXNOW_KEY) {
+    if (!indexNowKey) {
       console.error('[INDEXNOW BULK] Error: INDEXNOW_KEY not configured');
       return res.status(400).json({
         error: "IndexNow key not configured",
@@ -51,7 +54,7 @@ export const handleBulkPing: RequestHandler = async (req, res) => {
       });
     }
 
-    if (!INDEXNOW_KEY_LOCATION) {
+    if (!indexNowKeyLocation) {
       console.error('[INDEXNOW BULK] Error: INDEXNOW_KEY_LOCATION not configured');
       return res.status(400).json({
         error: "IndexNow key location not configured",
@@ -61,7 +64,7 @@ export const handleBulkPing: RequestHandler = async (req, res) => {
 
     // Verify key file exists before proceeding
     try {
-      const keyFileUrl = `${INDEXNOW_KEY_LOCATION}/${INDEXNOW_KEY}.txt`;
+      const keyFileUrl = `${indexNowKeyLocation}/${indexNowKey}.txt`;
       console.log(`[INDEXNOW BULK] Verifying key at: ${keyFileUrl}`);
       const keyCheckResponse = await fetch(keyFileUrl);
 
@@ -75,7 +78,7 @@ export const handleBulkPing: RequestHandler = async (req, res) => {
       }
 
       const keyContent = await keyCheckResponse.text();
-      if (keyContent.trim() !== INDEXNOW_KEY) {
+      if (keyContent.trim() !== indexNowKey) {
         console.error('[INDEXNOW BULK] Key file content mismatch');
         return res.status(400).json({
           error: "IndexNow key verification failed",
@@ -105,14 +108,14 @@ export const handleBulkPing: RequestHandler = async (req, res) => {
       if (engine.type === "bulk") {
         // Handle bulk ping to IndexNow hub
         console.log(`[INDEXNOW BULK] Using bulk API for ${engineId}`);
-        const bulkResults = await pingBulkToHub(urls, mode);
+        const bulkResults = await pingBulkToHub(urls, mode, indexNowKey, indexNowKeyLocation);
         console.log(`[INDEXNOW BULK] Received ${bulkResults.length} results from hub`);
         results.push(...bulkResults);
       } else {
         // Handle individual pings to engines like Bing
         console.log(`[INDEXNOW BULK] Using individual pings for ${engineId}`);
         const singleResults = await Promise.all(
-          urls.map((url) => limit(() => pingSingleUrl(url, engineId, mode))),
+          urls.map((url) => limit(() => pingSingleUrl(url, engineId, mode, indexNowKey, indexNowKeyLocation))),
         );
         console.log(`[INDEXNOW BULK] Received ${singleResults.length} individual results`);
         results.push(...singleResults);
@@ -146,6 +149,7 @@ export const handleBulkPing: RequestHandler = async (req, res) => {
 };
 
 export const handleSinglePing: RequestHandler = async (req, res) => {
+  const siteReq = req as SiteRequest;
   try {
     // Handle Buffer body from serverless-http
     let bodyData = req.body;
@@ -164,14 +168,18 @@ export const handleSinglePing: RequestHandler = async (req, res) => {
 
     const { url, engines: selectedEngines } = validation.data;
 
-    if (!INDEXNOW_KEY) {
+    // Get keys from request context (set by siteMiddleware from env)
+    const indexNowKey = siteReq.siteConfig?.indexNowKey;
+    const indexNowKeyLocation = siteReq.siteConfig?.indexNowKeyLocation;
+
+    if (!indexNowKey) {
       return res.status(400).json({
         error: "IndexNow key not configured",
         message: "INDEXNOW_KEY environment variable is required",
       });
     }
 
-    if (!INDEXNOW_KEY_LOCATION) {
+    if (!indexNowKeyLocation) {
       return res.status(400).json({
         error: "IndexNow key location not configured",
         message: "INDEXNOW_KEY_LOCATION environment variable is required",
@@ -180,7 +188,7 @@ export const handleSinglePing: RequestHandler = async (req, res) => {
 
     // Verify key file exists before proceeding
     try {
-      const keyFileUrl = `${INDEXNOW_KEY_LOCATION}/${INDEXNOW_KEY}.txt`;
+      const keyFileUrl = `${indexNowKeyLocation}/${indexNowKey}.txt`;
       const keyCheckResponse = await fetch(keyFileUrl);
 
       if (!keyCheckResponse.ok) {
@@ -192,7 +200,7 @@ export const handleSinglePing: RequestHandler = async (req, res) => {
       }
 
       const keyContent = await keyCheckResponse.text();
-      if (keyContent.trim() !== INDEXNOW_KEY) {
+      if (keyContent.trim() !== indexNowKey) {
         return res.status(400).json({
           error: "IndexNow key verification failed",
           message: "Key file content does not match configured key",
@@ -209,7 +217,7 @@ export const handleSinglePing: RequestHandler = async (req, res) => {
     }
 
     const results = await Promise.all(
-      selectedEngines.map((engineId) => pingSingleUrl(url, engineId, "update")),
+      selectedEngines.map((engineId) => pingSingleUrl(url, engineId, "update", indexNowKey, indexNowKeyLocation)),
     );
 
     res.json({ results });
@@ -225,6 +233,8 @@ export const handleSinglePing: RequestHandler = async (req, res) => {
 async function pingBulkToHub(
   urls: string[],
   mode: "update" | "delete" = "update",
+  indexNowKey: string,
+  indexNowKeyLocation: string,
 ): Promise<PingResult[]> {
   const startTime = Date.now();
 
@@ -234,12 +244,12 @@ async function pingBulkToHub(
 
     const payload: any = {
       host,
-      key: INDEXNOW_KEY,
+      key: indexNowKey,
       urlList: urls,
     };
 
-    if (INDEXNOW_KEY_LOCATION) {
-      payload.keyLocation = INDEXNOW_KEY_LOCATION;
+    if (indexNowKeyLocation) {
+      payload.keyLocation = indexNowKeyLocation;
     }
 
     const response = await fetch(INDEXNOW_ENDPOINT, {
@@ -287,6 +297,8 @@ async function pingSingleUrl(
   url: string,
   engineId: keyof typeof engines,
   mode: "update" | "delete" = "update",
+  indexNowKey: string,
+  indexNowKeyLocation: string,
 ): Promise<PingResult> {
   const engine = engines[engineId];
   const startTime = Date.now();
@@ -298,11 +310,11 @@ async function pingSingleUrl(
       // Bing IndexNow endpoint format
       const params = new URLSearchParams({
         url: url,
-        key: INDEXNOW_KEY,
+        key: indexNowKey,
       });
 
-      if (INDEXNOW_KEY_LOCATION) {
-        params.set("keyLocation", INDEXNOW_KEY_LOCATION);
+      if (indexNowKeyLocation) {
+        params.set("keyLocation", indexNowKeyLocation);
       }
 
       pingUrl = `${engine.url}?${params.toString()}`;
@@ -325,10 +337,10 @@ async function pingSingleUrl(
           ? undefined
           : JSON.stringify({
               host: new URL(url).hostname,
-              key: INDEXNOW_KEY,
+              key: indexNowKey,
               urlList: [url],
-              ...(INDEXNOW_KEY_LOCATION && {
-                keyLocation: INDEXNOW_KEY_LOCATION,
+              ...(indexNowKeyLocation && {
+                keyLocation: indexNowKeyLocation,
               }),
             }),
     });
@@ -363,6 +375,7 @@ async function pingSingleUrl(
 }
 
 export const handleKeyVerification: RequestHandler = async (req, res) => {
+  const siteReq = req as SiteRequest;
   try {
     // Handle Buffer body from serverless-http
     let bodyData = req.body;
@@ -372,19 +385,22 @@ export const handleKeyVerification: RequestHandler = async (req, res) => {
 
     const { domain } = bodyData;
 
-    if (!domain || !INDEXNOW_KEY) {
+    // Get key from request context
+    const indexNowKey = siteReq.siteConfig?.indexNowKey;
+
+    if (!domain || !indexNowKey) {
       return res.status(400).json({
         error: "Domain and key required",
       });
     }
 
-    const keyFileUrl = `${domain}/${INDEXNOW_KEY}.txt`;
+    const keyFileUrl = `${domain}/${indexNowKey}.txt`;
 
     try {
       const response = await fetch(keyFileUrl);
       const content = await response.text().then((text) => text.trim());
 
-      const isValid = response.ok && content === INDEXNOW_KEY;
+      const isValid = response.ok && content === indexNowKey;
 
       res.json({
         valid: isValid,

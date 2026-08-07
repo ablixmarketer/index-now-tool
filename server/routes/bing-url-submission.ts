@@ -8,14 +8,13 @@ import {
 } from '@shared/bing-submission';
 import { submitUrlsToBingAPI, SubmitUrlsPayload } from '../services/bing-submission/bing-api-client';
 import { logSubmissionAttempt, logSubmissionResponse } from '../services/bing-submission/debug-instrumenter';
+import { SiteRequest } from '../middleware/site-middleware';
 
 // Rate limiter for concurrent requests
 const limit = pLimit(2);
 
-// Get API key from environment
-const BING_API_KEY = process.env.BING_SUBMISSION_API_KEY;
-
 export const handleSingleBingUrlSubmission: RequestHandler = async (req, res) => {
+  const siteReq = req as SiteRequest;
   try {
     // Handle Buffer body from serverless-http
     let bodyData = req.body;
@@ -32,8 +31,9 @@ export const handleSingleBingUrlSubmission: RequestHandler = async (req, res) =>
       });
     }
 
-    // Check API key
-    if (!BING_API_KEY) {
+    // Get API key from request context (set by siteMiddleware from env)
+    const bingApiKey = siteReq.siteConfig?.bingApiKey;
+    if (!bingApiKey) {
       return res.status(400).json({
         error: 'Bing API not configured',
         message: 'BING_SUBMISSION_API_KEY environment variable is required',
@@ -59,7 +59,7 @@ export const handleSingleBingUrlSubmission: RequestHandler = async (req, res) =>
         logSubmissionAttempt(url, 'url', payload as unknown as Record<string, unknown>, true);
       }
 
-      const urlResults = await submitUrlsToBingAPI(payload, BING_API_KEY);
+      const urlResults = await submitUrlsToBingAPI(payload, bingApiKey);
 
       // Add debug info to results if enabled
       if (debug) {
@@ -111,6 +111,7 @@ export const handleSingleBingUrlSubmission: RequestHandler = async (req, res) =>
 };
 
 export const handleBulkBingUrlSubmission: RequestHandler = async (req, res) => {
+  const siteReq = req as SiteRequest;
   try {
     // Handle Buffer body from serverless-http
     let bodyData = req.body;
@@ -127,8 +128,9 @@ export const handleBulkBingUrlSubmission: RequestHandler = async (req, res) => {
       });
     }
 
-    // Check API key
-    if (!BING_API_KEY) {
+    // Get API key from request context (set by siteMiddleware from env)
+    const bingApiKey = siteReq.siteConfig?.bingApiKey;
+    if (!bingApiKey) {
       return res.status(400).json({
         error: 'Bing API not configured',
         message: 'BING_SUBMISSION_API_KEY environment variable is required',
@@ -167,7 +169,7 @@ export const handleBulkBingUrlSubmission: RequestHandler = async (req, res) => {
               console.log(`[DEBUG] Submitting batch of ${batchUrls.length} URLs`);
             }
 
-            const batchResult = await submitUrlsToBingAPI(payload, BING_API_KEY);
+            const batchResult = await submitUrlsToBingAPI(payload, bingApiKey);
 
             // Add debug info to results if enabled
             if (debug) {

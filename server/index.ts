@@ -109,7 +109,7 @@ export async function createApp() {
           if (err) {
             console.error('[SERVER] Error serving index.html:', {
               error: err.message,
-              code: err.code,
+              code: (err as any).code,
               path: indexPath,
               requiredPath: req.path,
             });
