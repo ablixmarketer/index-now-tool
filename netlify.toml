@@ -1,7 +1,7 @@
 [build]
   command = "npm run build"
   publish = "dist/spa"
-  environment = { NODE_ENV = "production", VITE_API_BASE_URL = "https://index-now-tool.onrender.com" }
+  environment = { NODE_ENV = "production" }
 
 # SPA fallback - serve index.html for all non-API routes
 [[redirects]]

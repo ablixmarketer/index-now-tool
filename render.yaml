@@ -8,8 +8,8 @@ services:
       - key: NODE_ENV
         value: production
       - key: INDEXNOW_KEY
-        scope: build
+        sync: false
       - key: INDEXNOW_KEY_LOCATION
-        scope: build
+        sync: false
       - key: BING_SUBMISSION_API_KEY
-        scope: build
+        sync: false
