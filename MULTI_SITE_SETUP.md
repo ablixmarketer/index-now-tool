@@ -23,11 +23,11 @@ Edit `.env` file:
 
 ```env
 # Your primary domain
-INDEXNOW_KEY_LOCATION=https://www.airi.health
+INDEXNOW_KEY_LOCATION=https://yourdomain.com
 
 # IndexNow API key for this domain
 # Get from: https://www.indexnow.org/
-INDEXNOW_KEY=558e9f294e5246d2993e4eaed06e54b4
+INDEXNOW_KEY=your-indexnow-key-here
 
 # Bing Submission API key (optional)
 # Get from: https://www.bing.com/webmasters/

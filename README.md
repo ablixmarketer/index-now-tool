@@ -96,7 +96,7 @@ A beautiful, modern web application for scanning sitemaps and pinging search eng
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
-| `INDEXNOW_KEY` | ✅ | Your IndexNow API key | `558e9f294e5246d2993e4eaed06e54b4` |
+| `INDEXNOW_KEY` | ✅ | Your IndexNow API key | `your-indexnow-key-here` |
 | `INDEXNOW_KEY_LOCATION` | ❌ | URL where key file is hosted | `https://yourdomain.com` |
 | `INDEXNOW_ENDPOINT` | ❌ | IndexNow API endpoint | `https://api.indexnow.org/indexnow` |
 | `API_PORT` | ❌ | API server port | `3001` |

@@ -53,15 +53,23 @@ export async function createApp() {
     res.json({ message: "pong", timestamp: new Date().toISOString() });
   });
 
-  // Site configuration endpoint
+  // Public configuration metadata. Never return API keys to the browser.
   app.get("/api/config", (req, res) => {
-    const config = {
-      domain: process.env.INDEXNOW_KEY_LOCATION?.split("//")[1]?.split("/")[0] || "",
-      indexNowKey: process.env.INDEXNOW_KEY || "",
-      indexNowKeyLocation: process.env.INDEXNOW_KEY_LOCATION || "",
-      bingApiKey: process.env.BING_SUBMISSION_API_KEY || "",
-    };
-    res.json(config);
+    const keyLocation = process.env.INDEXNOW_KEY_LOCATION?.trim() || "";
+    let domain = "";
+
+    try {
+      domain = new URL(keyLocation).hostname;
+    } catch {
+      // Invalid or missing configuration is reported through the status flags.
+    }
+
+    res.json({
+      domain,
+      indexNowKeyLocation: keyLocation,
+      indexNowConfigured: Boolean(process.env.INDEXNOW_KEY?.trim()),
+      bingConfigured: Boolean(process.env.BING_SUBMISSION_API_KEY?.trim()),
+    });
   });
 
   // Existing demo route
@@ -156,9 +164,7 @@ if (
         console.log(`Server running on port ${PORT}`);
         console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
         if (process.env.INDEXNOW_KEY) {
-          console.log(
-            `IndexNow key configured: ${process.env.INDEXNOW_KEY.slice(0, 8)}...`,
-          );
+          console.log('IndexNow key configured from environment');
         } else {
           console.log(
             "⚠️  IndexNow key not configured. Set INDEXNOW_KEY environment variable.",

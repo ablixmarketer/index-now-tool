@@ -19,21 +19,28 @@ import { Slider } from "@/components/ui/slider";
 import { Globe, Search, AlertCircle, Settings, Zap } from "lucide-react";
 import { engines, type EngineId, type SitemapUrl } from "@shared/indexnow";
 import { sitemapApi } from "@/lib/fetch-utils";
+import type { SiteConfig } from "@shared/site-config";
 
 interface SitemapScannerProps {
   onScanStart: () => void;
   onScanComplete: (urls: SitemapUrl[]) => void;
   onScanError: (error: string) => void;
+  activeSite?: SiteConfig | null;
 }
 
 export function SitemapScanner({
   onScanStart,
   onScanComplete,
   onScanError,
+  activeSite,
 }: SitemapScannerProps) {
-  const [sitemapUrl, setSitemapUrl] = useState(
-    "https://www.airi.health/sitemap.xml",
-  );
+  const [sitemapUrl, setSitemapUrl] = useState("");
+
+  useEffect(() => {
+    if (activeSite?.domain && !sitemapUrl) {
+      setSitemapUrl(`https://${activeSite.domain}/sitemap.xml`);
+    }
+  }, [activeSite?.domain, sitemapUrl]);
   const [days, setDays] = useState(7);
   const [customDays, setCustomDays] = useState("");
   const [includePatterns, setIncludePatterns] = useState("");

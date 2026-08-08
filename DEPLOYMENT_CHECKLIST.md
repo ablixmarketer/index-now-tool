@@ -100,7 +100,7 @@ Option B: Manual deployment
 ### ❌ Mistake 1: Hardcoding Domain in Code
 ```typescript
 // WRONG - Don't do this
-const domain = "www.airi.health"; // hardcoded
+const domain = "yourdomain.com"; // hardcoded
 ```
 ```typescript
 // CORRECT - Let environment variables drive it

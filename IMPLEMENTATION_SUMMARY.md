@@ -135,8 +135,8 @@
 
 ### Current Settings (code/.env)
 ```env
-INDEXNOW_KEY=558e9f294e5246d2993e4eaed06e54b4
-INDEXNOW_KEY_LOCATION=https://www.airi.health
+INDEXNOW_KEY=your-indexnow-key-here
+INDEXNOW_KEY_LOCATION=https://yourdomain.com
 NODE_ENV=development
 API_PORT=3001
 ```

@@ -177,6 +177,7 @@ export default function Index() {
                       </CardHeader>
                       <CardContent>
                         <SitemapScanner
+                          activeSite={activeSite}
                           onScanStart={() => {
                             console.log("🚀 Scan started");
                             setIsScanning(true);

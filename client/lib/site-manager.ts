@@ -58,15 +58,16 @@ class SiteManager {
       }
 
       const envConfig = await response.json();
-      if (envConfig.domain && envConfig.indexNowKey) {
+      if (envConfig.domain) {
         const siteId = 'default';
         this.config.sites[siteId] = {
           id: siteId,
           domain: envConfig.domain,
           displayName: envConfig.domain,
-          indexNowKey: envConfig.indexNowKey,
+          // Credentials remain server-side and are never persisted in the browser.
+          indexNowKey: '',
           indexNowKeyLocation: envConfig.indexNowKeyLocation || `https://${envConfig.domain}`,
-          bingApiKey: envConfig.bingApiKey || '',
+          bingApiKey: '',
           isActive: true,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),

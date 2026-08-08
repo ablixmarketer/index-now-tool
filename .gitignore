@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 
 .config/
-.env
-.env.local
-.env.production
+
+# Local environment files must never be committed.
+.env*
+!.env.example

@@ -109,10 +109,10 @@ Already correctly:
 
 ### Example for Multiple Websites
 
-**Deployment 1: www.airi.health**
+**Deployment 1: yourdomain.com**
 ```
-INDEXNOW_KEY=558e9f294e5246d2993e4eaed06e54b4
-INDEXNOW_KEY_LOCATION=https://www.airi.health
+INDEXNOW_KEY=your-indexnow-key-here
+INDEXNOW_KEY_LOCATION=https://yourdomain.com
 BING_SUBMISSION_API_KEY=your-bing-key-for-airi
 NODE_ENV=production
 API_PORT=3001
@@ -132,7 +132,7 @@ Each deployment will use its own environment variables - no code changes needed.
 ## Why This Matters
 
 ### Previous Issue:
-- Routes had hardcoded fallback: `"558e9f294e5246d2993e4eaed06e54b4"`
+- Routes had hardcoded fallback: `"your-indexnow-key-here"`
 - Even when environment variables were set, stale values persisted
 - Module-level caching meant new keys weren't picked up
 

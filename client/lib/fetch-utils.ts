@@ -1,17 +1,11 @@
 // Get API base URL - use Render backend for all environments
 const getApiBaseUrl = (): string => {
-  // Check if we have an explicit API URL from environment
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-  if (envUrl) {
-    console.log(`[API] Using env URL: ${envUrl}`);
-    return envUrl;
-  }
-
-  // Always use Render backend as it's always available
-  // This is the source of truth for the API
-  const renderUrl = 'https://index-now-tool.onrender.com';
-  console.log(`[API] Using Render backend: ${renderUrl}`);
-  return renderUrl;
+  // In a combined deployment, use the same origin. A separate frontend
+  // deployment must provide VITE_API_BASE_URL through its build environment.
+  const envUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  const baseUrl = envUrl ? envUrl.replace(/\/$/, '') : '';
+  console.log(`[API] Using ${baseUrl ? `configured API URL: ${baseUrl}` : 'same-origin API'}`);
+  return baseUrl;
 };
 
 // Retry logic for failed requests

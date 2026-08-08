@@ -197,7 +197,7 @@ If you have access to the terminal where the app is running, you'll see:
 [INDEXNOW BULK] URLs count: 25
 [INDEXNOW BULK] Selected engines: indexnow,bing,bing-url,bing-content
 [INDEXNOW BULK] First 3 URLs: [...]
-[INDEXNOW BULK] Verifying key at: https://www.airi.health/58e9f294e5246d2993e4eaed06e54b4.txt
+[INDEXNOW BULK] Verifying key at: https://yourdomain.com/58e9f294e5246d2993e4eaed06e54b4.txt
 [INDEXNOW BULK] Key verification passed
 [INDEXNOW BULK] Processing engine: indexnow
 [INDEXNOW BULK] Using bulk API for indexnow
@@ -380,8 +380,8 @@ Your current configuration:
 
 ```env
 # IndexNow Configuration
-INDEXNOW_KEY=558e9f294e5246d2993e4eaed06e54b4
-INDEXNOW_KEY_LOCATION=https://www.airi.health
+INDEXNOW_KEY=your-indexnow-key-here
+INDEXNOW_KEY_LOCATION=https://yourdomain.com
 
 # Development Settings
 NODE_ENV=development
